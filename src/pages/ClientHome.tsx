@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'react-hot-toast';
 import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
@@ -69,6 +70,15 @@ export default function ClientHome() {
       quantity: 1,
       type: 'dish'
     });
+    toast.success(`${menu.title} (${selectedSize.toUpperCase()}) adicionado!`, {
+      icon: '🍲',
+      style: {
+        borderRadius: '12px',
+        background: '#1b1f18',
+        color: '#f2f4f0',
+        border: '1px solid rgba(138, 154, 91, 0.2)'
+      },
+    });
   };
 
   const handleAddDrink = (drink: any) => {
@@ -78,6 +88,15 @@ export default function ClientHome() {
       price: drink.price,
       quantity: 1,
       type: 'drink'
+    });
+    toast.success(`${drink.name} adicionado!`, {
+      icon: '🍹',
+      style: {
+        borderRadius: '12px',
+        background: '#1b1f18',
+        color: '#f2f4f0',
+        border: '1px solid rgba(138, 154, 91, 0.2)'
+      },
     });
   };
 
@@ -281,4 +300,3 @@ export default function ClientHome() {
     </div>
   );
 }
-
