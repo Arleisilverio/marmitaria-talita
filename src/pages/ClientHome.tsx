@@ -14,6 +14,7 @@ import {
   Leaf,
   Send
 } from 'lucide-react';
+import AIChat from '../components/AIChat';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -233,6 +234,9 @@ export default function ClientHome() {
           </div>
         </section>
       </motion.main>
+
+      {/* AI Assistant */}
+      <AIChat menuContext={menu} />
 
       {/* Sticky Checkout Button */}
       <AnimatePresence>

@@ -7,8 +7,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8791437029:AAFIHtfz1gMDStGYJVlBMRmqGWWCYwgtwaE";
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946"; // Usando um ID de exemplo ou o que o usuário forneceu.
-// Nota: Se for um username de canal/grupo, deve começar com @. Se for privado, deve ser o ID numérico.
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // In-memory Database
 let db = {
