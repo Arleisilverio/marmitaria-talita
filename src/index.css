@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Artisanal Palette: Terracotta & Olive */
+  --color-surface: #121410; /* Dark with a hint of olive */
+  --color-surface-dim: #0d0f0c;
+  --color-surface-bright: #2d3329;
+  --color-surface-container-lowest: #080a07;
+  --color-surface-container-low: #151812;
+  --color-surface-container: #1b1f18;
+  --color-surface-container-high: #242a20;
+  --color-surface-container-highest: #2d3529;
+  
+  --color-on-surface: #f2f4f0;
+  --color-on-surface-variant: #b9c2b1;
+  
+  --color-primary: #e2725b; /* Terracotta */
+  --color-on-primary: #3d150d;
+  --color-primary-container: #bd5a44;
+  
+  --color-secondary: #8a9a5b; /* Sage/Olive Green */
+  --color-on-secondary: #1d2310;
+  --color-secondary-container: #6d7b43;
+  
+  --color-tertiary: #d4a373; /* Earthy Tan */
+  --color-on-tertiary: #3a2610;
+  --color-tertiary-container: #bc8a5f;
+  
+  --color-background: #0d0f0c;
+  --color-on-background: #f2f4f0;
+
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
+
+  --spacing-container: 16px;
+  --spacing-gutter: 12px;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-sans antialiased selection:bg-primary/30;
+  }
+}
+
+.glass-card {
+  background: rgba(27, 31, 24, 0.7); /* Hint of olive */
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-glow-primary {
+  box-shadow: 0 4px 20px rgba(226, 114, 91, 0.2);
+}
+
+.neon-glow-secondary {
+  box-shadow: 0 4px 20px rgba(138, 154, 91, 0.2);
+}
+
+.neon-glow-btn {
+  box-shadow: 0 10px 30px rgba(193, 85, 60, 0.4);
+}
+
+.status-badge-glow {
+  box-shadow: 0 0 12px rgba(138, 154, 91, 0.3);
+  border: 1px solid rgba(138, 154, 91, 0.2);
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, #1b1f18 25%, #242a20 50%, #1b1f18 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

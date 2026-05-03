@@ -1,0 +1,270 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { api } from '../lib/api';
+import { useCart } from '../contexts/CartContext';
+import { cn, formatBRL } from '../lib/utils';
+import { 
+  Utensils, 
+  Receipt, 
+  Flame, 
+  User, 
+  ShoppingCart,
+  Plus,
+  Leaf
+} from 'lucide-react';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, filter: 'blur(10px)' },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    filter: 'blur(0px)',
+    transition: { type: 'spring', stiffness: 100, damping: 15 }
+  }
+};
+
+export default function ClientHome() {
+  const navigate = useNavigate();
+  const { addItem, total, items } = useCart();
+  const [menu, setMenu] = useState<any>(null);
+  const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getMenu().then(data => {
+      setMenu(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading || !menu) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
+        <div className="w-16 h-16 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin mb-4"></div>
+        <p className="text-secondary font-mono animate-pulse uppercase tracking-widest text-xs">Preparando cardápio artesanal...</p>
+      </div>
+    );
+  }
+
+  const handleAddDish = () => {
+    addItem({
+      id: 'dish_day',
+      name: menu.title,
+      size: selectedSize.toUpperCase() as any,
+      price: menu.prices[selectedSize],
+      quantity: 1,
+      type: 'dish'
+    });
+  };
+
+  const handleAddDrink = (drink: any) => {
+    addItem({
+      id: drink.id,
+      name: drink.name,
+      price: drink.price,
+      quantity: 1,
+      type: 'drink'
+    });
+  };
+
+  return (
+    <div className="min-h-screen pb-32 bg-background selection:bg-primary/20">
+      {/* TopAppBar */}
+      <header className="bg-surface/80 backdrop-blur-xl docked full-width top-0 sticky z-50 border-b border-white/5 flex justify-between items-center px-4 py-3 w-full">
+        <div className="flex items-center gap-2">
+          <Leaf className="text-secondary w-6 h-6" />
+          <h1 className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-tertiary to-secondary">
+            MARMITARIA TALITA
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="status-badge-glow bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            <span className="font-mono text-[10px] text-secondary font-bold tracking-widest">ABERTO</span>
+          </div>
+        </div>
+      </header>
+
+      <motion.main
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Hero Section / Promo */}
+        <motion.section variants={itemVariants} className="px-container mt-4">
+          <div className="relative h-56 w-full rounded-2xl overflow-hidden glass-card shadow-2xl">
+            <motion.img 
+              initial={{ scale: 1.2 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 1.5 }}
+              alt="Especial" 
+              className="w-full h-full object-cover opacity-60" 
+              src={menu.image || "https://images.unsplash.com/photo-1548943487-a2e4142f9ae1?auto=format&fit=crop&q=80"}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+            <div className="absolute bottom-6 left-6">
+              <span className="bg-primary/20 text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest mb-2 inline-block">Recomendado</span>
+              <h2 className="font-heading text-3xl font-bold text-white mb-1 tracking-tight">Especial de Hoje</h2>
+              <p className="text-secondary font-mono text-sm">{menu.title}</p>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Cardápio do Dia Section */}
+        <section className="px-container mt-8">
+          <motion.div variants={itemVariants} className="flex items-center justify-between mb-5">
+            <h3 className="font-heading text-2xl font-bold text-on-surface">Cardápio do Dia</h3>
+          </motion.div>
+
+          {/* Main Food Card */}
+          <motion.div variants={itemVariants} className="glass-card rounded-2xl overflow-hidden mb-4 shadow-xl border border-white/5">
+            <div className="relative h-64">
+              <img 
+                alt="Main Dish" 
+                className="w-full h-full object-cover" 
+                src={menu.image || "https://images.unsplash.com/photo-1548943487-a2e4142f9ae1?auto=format&fit=crop&q=80"}
+              />
+              <div className="absolute top-4 right-4 glass-card px-3 py-1.5 rounded-xl border-white/10">
+                <span className="text-tertiary font-heading font-bold text-xl">{formatBRL(menu.prices.p)}</span>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <h4 className="font-heading text-2xl font-bold text-white mb-2">{menu.title}</h4>
+              <p className="text-on-surface-variant text-sm mb-8 leading-relaxed">
+                {menu.description}
+              </p>
+
+              <div className="mb-8">
+                <p className="font-mono text-secondary/60 mb-3 text-[10px] font-bold uppercase tracking-widest">Escolha o tamanho</p>
+                <div className="flex flex-wrap gap-3">
+                  {(['p', 'm', 'g'] as const).map(size => (
+                    <button 
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={cn(
+                        "font-mono text-xs py-2.5 px-5 rounded-xl transition-all duration-300",
+                        selectedSize === size 
+                          ? "bg-primary text-on-primary font-bold shadow-lg shadow-primary/20 scale-105" 
+                          : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high border border-white/5"
+                      )}
+                    >
+                      {size.toUpperCase()} ({formatBRL(menu.prices[size])})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <p className="font-mono text-secondary/60 mb-3 text-[10px] font-bold uppercase tracking-widest">Carnes do Dia</p>
+                <div className="flex flex-wrap gap-2">
+                  {menu.meats.filter((m:any) => m.available).map((meat: any) => (
+                    <span key={meat.id} className="text-[11px] bg-secondary/10 border border-secondary/10 px-3 py-1.5 rounded-lg text-secondary font-medium">
+                      {meat.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAddDish}
+                className="w-full bg-primary text-on-primary font-heading font-black text-lg py-4 rounded-xl flex items-center justify-center gap-3 shadow-xl shadow-primary/20 transition-all"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                ADICIONAR AO PEDIDO
+              </motion.button>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* Beverages Section */}
+        <section className="px-container mt-8">
+          <motion.h3 variants={itemVariants} className="font-heading text-2xl font-bold text-on-surface mb-5">Bebidas & Extras</motion.h3>
+          <div className="grid grid-cols-1 gap-3">
+            {menu.drinks.map((drink: any) => (
+              <motion.div 
+                variants={itemVariants}
+                key={drink.id} 
+                className="glass-card p-3 rounded-2xl flex items-center justify-between border border-white/5"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-2xl shadow-inner">
+                    🍹
+                  </div>
+                  <div>
+                    <p className="font-sans font-bold text-on-surface text-base">{drink.name}</p>
+                    <p className="text-secondary font-heading font-bold text-sm">{formatBRL(drink.price)}</p>
+                  </div>
+                </div>
+                <motion.button 
+                  whileHover={{ scale: 1.1, backgroundColor: 'var(--color-primary)' }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => handleAddDrink(drink)}
+                  className="w-12 h-12 rounded-xl bg-surface-container border border-white/10 text-primary flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-6 h-6" />
+                </motion.button>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      </motion.main>
+
+      {/* Sticky Checkout Button */}
+      <AnimatePresence>
+        {items.length > 0 && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 left-0 right-0 px-container z-40"
+          >
+            <button 
+              onClick={() => navigate('/checkout')}
+              className="w-full bg-primary text-on-primary py-4 rounded-2xl font-heading text-lg font-black flex justify-between items-center px-8 shadow-2xl shadow-primary/30 active:scale-95 transition-transform"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-on-primary/20 p-2 rounded-lg">
+                  <ShoppingCart className="w-6 h-6" />
+                </div>
+                <span>CARRINHO ({items.reduce((acc, i) => acc + i.quantity, 0)})</span>
+              </div>
+              <span className="font-heading">{formatBRL(total)}</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Nav */}
+      <nav className="bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe">
+        <button className="flex flex-col items-center justify-center text-primary transition-all">
+          <Utensils className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span>
+        </button>
+        <button className="flex flex-col items-center justify-center text-on-surface-variant/40 hover:text-secondary transition-all">
+          <Receipt className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span>
+        </button>
+        <button className="flex flex-col items-center justify-center text-on-surface-variant/40 hover:text-secondary transition-all">
+          <User className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
+
