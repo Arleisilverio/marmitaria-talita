@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { formatBRL } from '../lib/utils';
 import { api } from '../lib/api';
-import { 
-  ArrowLeft, 
-  Minus, 
-  Plus, 
-  QrCode, 
-  CreditCard, 
+import {
+  ArrowLeft,
+  Minus,
+  Plus,
+  QrCode,
+  CreditCard,
   Banknote,
   ShoppingBag,
-  RefreshCcw 
+  RefreshCcw,
+  Send
 } from 'lucide-react';
 
 export default function ClientCheckout() {
@@ -76,8 +77,19 @@ export default function ClientCheckout() {
           </button>
           <h1 className="font-heading text-sm font-bold uppercase tracking-widest text-orange-600">FINALIZAR PEDIDO</h1>
         </div>
-        <div className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
-          TALITA
+        <div className="flex items-center gap-4">
+          <a
+            href="https://t.me/Marmitaria_talita_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sky-400 hover:text-sky-300 transition-colors p-1"
+            title="Falar com o Bot no Telegram"
+          >
+            <Send className="w-6 h-6 rotate-[-45deg] translate-y-[-2px]" />
+          </a>
+          <div className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
+            TALITA
+          </div>
         </div>
       </header>
 

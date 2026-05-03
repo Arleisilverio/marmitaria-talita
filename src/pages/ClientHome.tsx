@@ -4,14 +4,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
-import { 
-  Utensils, 
-  Receipt, 
-  Flame, 
-  User, 
+import {
+  Utensils,
+  Receipt,
+  Flame,
+  User,
   ShoppingCart,
   Plus,
-  Leaf
+  Leaf,
+  Send
 } from 'lucide-react';
 
 const containerVariants = {
@@ -89,7 +90,16 @@ export default function ClientHome() {
             MARMITARIA TALITA
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <a
+            href="https://t.me/Marmitaria_talita_bot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sky-400 hover:text-sky-300 transition-colors p-1"
+            title="Falar com o Bot no Telegram"
+          >
+            <Send className="w-5 h-5 rotate-[-45deg] translate-y-[-1px]" />
+          </a>
           <div className="status-badge-glow bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
             <span className="font-mono text-[10px] text-secondary font-bold tracking-widest">ABERTO</span>
