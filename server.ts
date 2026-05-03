@@ -2,6 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8791437029:AAFIHtfz1gMDStGYJVlBMRmqGWWCYwgtwaE";
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946"; // Usando um ID de exemplo ou o que o usuário forneceu.
+// Nota: Se for um username de canal/grupo, deve começar com @. Se for privado, deve ser o ID numérico.
 
 // In-memory Database
 let db = {
@@ -60,6 +67,44 @@ async function startServer() {
       createdAt: Date.now()
     };
     db.orders.push(newOrder);
+
+    // Enviar para o Telegram
+    try {
+      const itemsList = newOrder.itens.map((item: any) =>
+        `• ${item.name}${item.size ? ` (${item.size})` : ''} x${item.quantity} - R$ ${(item.price * item.quantity).toFixed(2)}`
+      ).join('\n');
+
+      const message = `
+🛍️ *NOVO PEDIDO: #${newOrder.id}*
+
+👤 *Cliente:* ${newOrder.cliente_nome}
+📞 *Telefone:* ${newOrder.telefone}
+📍 *Endereço:* ${newOrder.endereco}
+💳 *Pagamento:* ${newOrder.pagamento.toUpperCase()}${newOrder.trocoPara ? ` (Troco para ${newOrder.trocoPara})` : ''}
+
+📋 *Itens:*
+${itemsList}
+
+🚚 *Taxa de Entrega:* R$ 5,00
+💰 *TOTAL: R$ ${newOrder.total.toFixed(2)}*
+
+---
+_Pedido recebido via App Marmitaria_
+      `;
+
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID.startsWith('@') || !isNaN(Number(TELEGRAM_CHAT_ID)) ? TELEGRAM_CHAT_ID : `@${TELEGRAM_CHAT_ID}`,
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+      console.log("Notificação enviada ao Telegram");
+    } catch (err) {
+      console.error("Erro ao enviar notificação para o Telegram:", err);
+    }
 
     // Optional: Simulate webhook to n8n
     if (process.env.N8N_WEBHOOK_URL) {

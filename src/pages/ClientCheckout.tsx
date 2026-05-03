@@ -47,7 +47,7 @@ export default function ClientCheckout() {
         total: finalTotal
       });
       clearCart();
-      alert("Pedido enviado com sucesso! Acompanhe pelo seu WhatsApp.");
+      alert("Pedido enviado com sucesso! Em breve entraremos em contato via Telegram.");
       navigate('/');
     } catch (err) {
       alert("Erro ao enviar pedido.");
