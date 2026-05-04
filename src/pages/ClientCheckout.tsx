@@ -11,7 +11,6 @@ import {
   CreditCard,
   Banknote,
   ShoppingBag,
-  RefreshCcw,
   Send
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -42,17 +41,16 @@ export default function ClientCheckout() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // 1. Criar o pedido no Supabase
+      // 1. Criar o pedido no Supabase usando os nomes exatos das colunas do banco
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: user?.id,
-          cliente_nome: formData.nome,
-          customer_name: formData.nome, // Sincronizando com colunas do banco
+          user_id: user?.id || null,
+          customer_name: formData.nome,
           customer_phone: formData.telefone,
           delivery_address: formData.endereco,
           payment_method: formData.pagamento,
-          change_for: formData.trocoPara,
+          change_for: formData.trocoPara || null,
           total_amount: finalTotal,
           status: 'pendente'
         })
@@ -64,7 +62,7 @@ export default function ClientCheckout() {
       // 2. Salvar os itens do pedido
       const orderItems = items.map(item => ({
         order_id: order.id,
-        product_id: null, // Aqui poderíamos vincular a IDs reais de produtos
+        product_id: null, 
         quantity: item.quantity,
         unit_price: item.price,
         notes: item.observation || ''
@@ -76,28 +74,22 @@ export default function ClientCheckout() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Notificar via API (Telegram)
+      // 3. Notificar o servidor local (para Telegram/Impressão)
       await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: order.id,
-          cliente_nome: formData.nome,
-          telefone: formData.telefone,
-          endereco: formData.endereco,
-          pagamento: formData.pagamento,
-          trocoPara: formData.trocoPara,
-          itens: items,
-          total: finalTotal
+          ...order,
+          itens: items // Passamos os itens para a notificação
         })
       });
 
       clearCart();
-      toast.success("Pedido enviado! Verifique o Telegram.");
+      toast.success("Pedido enviado com sucesso!");
       navigate('/');
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao salvar pedido.");
+    } catch (err: any) {
+      console.error("Erro ao salvar pedido:", err);
+      toast.error(`Erro ao salvar pedido: ${err.message || 'Verifique sua conexão'}`);
     } finally {
       setLoading(false);
     }
@@ -130,18 +122,12 @@ export default function ClientCheckout() {
       {loading ? (
         <div className="flex flex-col items-center justify-center h-[60vh] p-8 text-center space-y-4">
           <div className="w-20 h-20 rounded-full border-4 border-tertiary border-t-transparent animate-spin"></div>
-          <p className="font-heading text-xl text-primary">Salvando seu pedido...</p>
+          <p className="font-heading text-xl text-primary font-bold">Processando seu pedido...</p>
         </div>
       ) : (
         <main className="max-w-2xl mx-auto px-container pt-6 space-y-6">
           <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-2xl text-primary font-bold">Seu Carrinho</h2>
-              <span className="font-mono text-xs px-2 py-1 bg-primary/10 border border-primary/20 rounded text-primary uppercase">
-                {items.length} itens
-              </span>
-            </div>
-            
+            <h2 className="font-heading text-2xl text-primary font-bold">Seu Carrinho</h2>
             <div className="space-y-3">
               {items.map((item, idx) => (
                 <div key={`${item.id}-${item.size}-${idx}`} className="glass-card rounded-xl p-4 flex items-center gap-4">
@@ -192,27 +178,18 @@ export default function ClientCheckout() {
           <section className="space-y-4">
             <h2 className="font-heading text-2xl text-primary font-bold">Pagamento</h2>
             <div className="grid grid-cols-3 gap-2">
-              <button 
-                onClick={() => setFormData({...formData, pagamento: 'pix'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'pix' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
-              >
-                <QrCode className="text-primary" />
-                <span className="font-mono text-xs text-white">PIX</span>
-              </button>
-              <button 
-                onClick={() => setFormData({...formData, pagamento: 'cartao'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'cartao' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
-              >
-                <CreditCard className="text-primary" />
-                <span className="font-mono text-xs text-white">CARTÃO</span>
-              </button>
-              <button 
-                onClick={() => setFormData({...formData, pagamento: 'dinheiro'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'dinheiro' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
-              >
-                <Banknote className="text-primary" />
-                <span className="font-mono text-xs text-white">DINHEIRO</span>
-              </button>
+              {(['pix', 'cartao', 'dinheiro'] as const).map(method => (
+                <button 
+                  key={method}
+                  onClick={() => setFormData({...formData, pagamento: method})}
+                  className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === method ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
+                >
+                  {method === 'pix' && <QrCode className="text-primary" />}
+                  {method === 'cartao' && <CreditCard className="text-primary" />}
+                  {method === 'dinheiro' && <Banknote className="text-primary" />}
+                  <span className="font-mono text-xs text-white uppercase">{method}</span>
+                </button>
+              ))}
             </div>
             {formData.pagamento === 'dinheiro' && (
               <input 

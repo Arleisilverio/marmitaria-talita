@@ -8,7 +8,6 @@ dotenv.config();
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8791437029:AAFIHtfz1gMDStGYJVlBMRmqGWWCYwgtwaE";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // In-memory Database
 let db = {
@@ -42,51 +41,40 @@ async function startServer() {
 
   // --- API Routes ---
   
-  // 1. Get current menu
-  app.get("/api/menu", (req, res) => {
-    res.json(db.menu);
-  });
-
-  // 2. Update menu (Admin)
+  app.get("/api/menu", (req, res) => res.json(db.menu));
   app.put("/api/menu", (req, res) => {
     db.menu = { ...db.menu, ...req.body };
     res.json(db.menu);
   });
 
-  // 3. Get all orders (Admin)
-  app.get("/api/orders", (req, res) => {
-    res.json(db.orders.sort((a, b) => b.createdAt - a.createdAt));
-  });
+  app.get("/api/orders", (req, res) => res.json(db.orders.sort((a, b) => b.createdAt - a.createdAt)));
 
-  // 4. Create new order (Client or Telegram Bot)
   app.post("/api/orders", async (req, res) => {
+    const orderData = req.body;
     const newOrder = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...req.body,
-      status: "pendente",
-      createdAt: Date.now()
+      ...orderData,
+      createdAt: orderData.created_at ? new Date(orderData.created_at).getTime() : Date.now()
     };
     db.orders.push(newOrder);
 
     // Enviar para o Telegram
     try {
-      const itemsList = newOrder.itens.map((item: any) =>
-        `• ${item.name}${item.size ? ` (${item.size})` : ''} x${item.quantity} - R$ ${(item.price * item.quantity).toFixed(2)}`
-      ).join('\n');
+      const itemsList = newOrder.itens?.map((item: any) =>
+        `• ${item.name}${item.size ? ` (${item.size})` : ''} x${item.quantity}`
+      ).join('\n') || 'Nenhum item';
 
       const message = `
-🛍️ *NOVO PEDIDO: #${newOrder.id}*
+🛍️ *NOVO PEDIDO: #${newOrder.id.substring(0, 8).toUpperCase()}*
 
-👤 *Cliente:* ${newOrder.cliente_nome}
-📞 *Telefone:* ${newOrder.telefone}
-📍 *Endereço:* ${newOrder.endereco}
-💳 *Pagamento:* ${newOrder.pagamento.toUpperCase()}${newOrder.trocoPara ? ` (Troco para ${newOrder.trocoPara})` : ''}
+👤 *Cliente:* ${newOrder.customer_name}
+📞 *Telefone:* ${newOrder.customer_phone}
+📍 *Endereço:* ${newOrder.delivery_address}
+💳 *Pagamento:* ${newOrder.payment_method?.toUpperCase()}${newOrder.change_for ? ` (Troco para ${newOrder.change_for})` : ''}
 
 📋 *Itens:*
 ${itemsList}
 
-🚚 *Taxa de Entrega:* R$ 5,00
-💰 *TOTAL: R$ ${newOrder.total.toFixed(2)}*
+💰 *TOTAL: R$ ${newOrder.total_amount?.toFixed(2)}*
 
 ---
 _Pedido recebido via App Marmitaria_
@@ -96,44 +84,25 @@ _Pedido recebido via App Marmitaria_
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID.startsWith('@') || !isNaN(Number(TELEGRAM_CHAT_ID)) ? TELEGRAM_CHAT_ID : `@${TELEGRAM_CHAT_ID}`,
+          chat_id: TELEGRAM_CHAT_ID,
           text: message,
           parse_mode: 'Markdown'
         })
       });
-      console.log("Notificação enviada ao Telegram");
     } catch (err) {
-      console.error("Erro ao enviar notificação para o Telegram:", err);
-    }
-
-    // Optional: Simulate webhook to n8n
-    if (process.env.N8N_WEBHOOK_URL) {
-      try {
-        await fetch(process.env.N8N_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newOrder)
-        });
-      } catch (err) {
-        console.error("Failed to trigger webhook", err);
-      }
+      console.error("Erro ao enviar Telegram:", err);
     }
 
     res.status(201).json(newOrder);
   });
 
-  // 5. Update order status (Admin)
   app.put("/api/orders/:id/status", (req, res) => {
     const order = db.orders.find(o => o.id === req.params.id);
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    
-    order.status = req.body.status;
-    // Logica de notificar cliente via bot poderia ir aqui tbm, 
-    // disparando webhook pro bot do telegram
-    res.json(order);
+    if (order) order.status = req.body.status;
+    res.json(order || { error: "Order not found" });
   });
 
-  // --- Vite / Frontend Middleware ---
+  // --- Vite ---
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -143,9 +112,7 @@ _Pedido recebido via App Marmitaria_
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
   app.listen(PORT, "0.0.0.0", () => {

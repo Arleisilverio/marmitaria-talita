@@ -5,7 +5,6 @@ import {
   Utensils, 
   Receipt, 
   LogOut,
-  Image as ImageIcon,
   CheckCircle,
   XCircle,
   Printer,
@@ -24,7 +23,7 @@ export default function AdminDashboard() {
     fetchData();
     const interval = setInterval(() => {
       if (activeTab === 'orders') fetchOrders();
-    }, 10000); // Polling a cada 10s
+    }, 10000);
     return () => clearInterval(interval);
   }, [activeTab]);
 
@@ -52,13 +51,13 @@ export default function AdminDashboard() {
 
   const copyToWhatsApp = (order: any) => {
     const items = order.itens?.map((i:any) => `${i.quantity}x ${i.name} ${i.size ? `(${i.size})` : ''}`).join('\n') || '';
-    const text = `*PEDIDO #${order.id.toUpperCase()}*
-Cliente: ${order.cliente_nome}
-Telefone: ${order.telefone}
-Endereço: ${order.endereco}
+    const text = `*PEDIDO #${order.id.substring(0, 8).toUpperCase()}*
+Cliente: ${order.customer_name}
+Telefone: ${order.customer_phone}
+Endereço: ${order.delivery_address}
 Itens: ${items}
-Pagamento: ${order.pagamento.toUpperCase()}
-Total: ${formatBRL(order.total)}`;
+Pagamento: ${order.payment_method?.toUpperCase()}
+Total: ${formatBRL(order.total_amount)}`;
     
     navigator.clipboard.writeText(text);
     alert("Copiado para o WhatsApp!");
@@ -76,7 +75,7 @@ Total: ${formatBRL(order.total)}`;
 
   return (
     <div className="min-h-screen bg-surface md:pb-0 pb-20">
-      {/* Área de Impressão (Invisível na tela, visível no papel) */}
+      {/* Área de Impressão */}
       {printingOrder && (
         <div className="fixed inset-0 bg-white z-[9999] p-8 text-black font-mono print-only block">
           <div className="max-w-[80mm] mx-auto border-2 border-dashed border-black p-4">
@@ -87,13 +86,13 @@ Total: ${formatBRL(order.total)}`;
             </div>
             
             <div className="mb-4">
-              <p className="font-bold">PEDIDO: #{printingOrder.id.toUpperCase()}</p>
-              <p>CLIENTE: {printingOrder.cliente_nome}</p>
-              <p>TEL: {printingOrder.telefone}</p>
+              <p className="font-bold uppercase text-xs">PEDIDO: #{printingOrder.id.substring(0, 8).toUpperCase()}</p>
+              <p className="text-sm">CLIENTE: {printingOrder.customer_name}</p>
+              <p className="text-sm">TEL: {printingOrder.customer_phone}</p>
             </div>
 
             <div className="mb-4 border-y border-black py-2">
-              <p className="font-bold mb-1">ITENS:</p>
+              <p className="font-bold text-xs mb-1">ITENS:</p>
               {printingOrder.itens?.map((i:any, idx:number) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span>{i.quantity}x {i.name} {i.size && `(${i.size})`}</span>
@@ -103,24 +102,24 @@ Total: ${formatBRL(order.total)}`;
             </div>
 
             <div className="mb-4">
-              <p className="font-bold">ENDEREÇO DE ENTREGA:</p>
-              <p className="text-sm">{printingOrder.endereco}</p>
+              <p className="font-bold text-xs uppercase">ENDEREÇO:</p>
+              <p className="text-sm">{printingOrder.delivery_address}</p>
             </div>
 
             <div className="border-t-2 border-black pt-2">
-              <div className="flex justify-between font-bold">
+              <div className="flex justify-between font-bold text-sm">
                 <span>PAGAMENTO:</span>
-                <span>{printingOrder.pagamento.toUpperCase()}</span>
+                <span>{printingOrder.payment_method?.toUpperCase()}</span>
               </div>
-              {printingOrder.trocoPara && (
-                <div className="flex justify-between text-sm">
+              {printingOrder.change_for && (
+                <div className="flex justify-between text-xs">
                   <span>Troco para:</span>
-                  <span>R$ {printingOrder.trocoPara}</span>
+                  <span>{formatBRL(parseFloat(printingOrder.change_for))}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold mt-2">
                 <span>TOTAL:</span>
-                <span>{formatBRL(printingOrder.total)}</span>
+                <span>{formatBRL(printingOrder.total_amount)}</span>
               </div>
             </div>
 
@@ -132,7 +131,7 @@ Total: ${formatBRL(order.total)}`;
         </div>
       )}
 
-      {/* Header e Layout do Admin (Escondido ao imprimir) */}
+      {/* Painel Visível */}
       <div className="no-print">
         <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full">
           <div className="flex items-center gap-3">
@@ -155,43 +154,15 @@ Total: ${formatBRL(order.total)}`;
                 {activeTab === 'menu' ? 'Cardápio' : 'Pedidos'}
               </h2>
             </div>
-            <div className="flex p-1 bg-surface-container-highest rounded-lg w-full md:w-auto">
-              <button onClick={() => setActiveTab('menu')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-heading text-sm font-bold uppercase transition-all ${activeTab === 'menu' ? 'bg-zinc-950 text-orange-500' : 'text-zinc-500 hover:text-white'}`}>
+            <div className="flex p-1 bg-zinc-900 rounded-lg w-full md:w-auto">
+              <button onClick={() => setActiveTab('menu')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-heading text-sm font-bold uppercase transition-all ${activeTab === 'menu' ? 'bg-zinc-800 text-orange-500 shadow-lg shadow-orange-500/10' : 'text-zinc-500 hover:text-white'}`}>
                 <Utensils className="w-4 h-4" /> Cardápio
               </button>
-              <button onClick={() => setActiveTab('orders')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-heading text-sm font-bold uppercase transition-all ${activeTab === 'orders' ? 'bg-zinc-950 text-orange-500' : 'text-zinc-500 hover:text-white'}`}>
+              <button onClick={() => setActiveTab('orders')} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-md font-heading text-sm font-bold uppercase transition-all ${activeTab === 'orders' ? 'bg-zinc-800 text-orange-500 shadow-lg shadow-orange-500/10' : 'text-zinc-500 hover:text-white'}`}>
                 <Receipt className="w-4 h-4" /> Pedidos
               </button>
             </div>
           </div>
-
-          {activeTab === 'menu' && menu && (
-            <form onSubmit={handleMenuSave} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 space-y-8">
-                <section className="glass-card rounded-xl p-6 border border-orange-500/30 neon-glow-primary">
-                  <h3 className="font-heading text-2xl text-white mb-4">Prato do Dia</h3>
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="font-mono text-xs text-zinc-400 uppercase">Título</label>
-                      <input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-surface-container-low border border-outline-variant focus:border-primary rounded-lg p-3 text-white outline-none" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="font-mono text-xs text-zinc-400 uppercase">Descrição</label>
-                      <textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-surface-container-low border border-outline-variant focus:border-primary rounded-lg p-3 text-white outline-none" rows={3} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <input type="number" step="0.01" value={menu.prices.p} onChange={e => setMenu({...menu, prices: {...menu.prices, p: parseFloat(e.target.value)}})} className="bg-surface-container-low p-3 rounded-lg text-white" />
-                      <input type="number" step="0.01" value={menu.prices.m} onChange={e => setMenu({...menu, prices: {...menu.prices, m: parseFloat(e.target.value)}})} className="bg-primary-container/20 p-3 rounded-lg text-white" />
-                      <input type="number" step="0.01" value={menu.prices.g} onChange={e => setMenu({...menu, prices: {...menu.prices, g: parseFloat(e.target.value)}})} className="bg-surface-container-low p-3 rounded-lg text-white" />
-                    </div>
-                  </div>
-                </section>
-                <button type="submit" className="w-full bg-gradient-to-r from-red-600 to-orange-500 py-4 rounded-xl font-heading text-lg font-bold text-white uppercase tracking-wider neon-glow-btn">
-                  Salvar Cardápio
-                </button>
-              </div>
-            </form>
-          )}
 
           {activeTab === 'orders' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -201,8 +172,8 @@ Total: ${formatBRL(order.total)}`;
                 <div key={order.id} className="glass-card rounded-xl overflow-hidden flex flex-col group hover:border-primary/30 transition-all duration-300">
                   <div className="p-4 border-b border-white/5 flex justify-between items-start">
                     <div>
-                      <h3 className="font-heading font-bold text-lg text-white">{order.cliente_nome}</h3>
-                      <p className="font-sans text-xs text-zinc-500 mt-1">{format(new Date(order.createdAt), "dd/MM HH:mm")}</p>
+                      <h3 className="font-heading font-bold text-lg text-white">{order.customer_name}</h3>
+                      <p className="font-sans text-xs text-zinc-500 mt-1">{format(new Date(order.created_at || Date.now()), "dd/MM HH:mm")}</p>
                     </div>
                     <div className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold border ${order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : order.status === 'confirmado' ? 'bg-green-500/10 text-green-500 border-green-500/30' : 'bg-red-500/10 text-red-500'}`}>
                       {order.status}
@@ -220,15 +191,15 @@ Total: ${formatBRL(order.total)}`;
                     <div className="flex justify-between items-end">
                       <div>
                         <p className="font-mono text-[10px] text-zinc-500 uppercase">Pagamento</p>
-                        <p className="font-sans text-sm text-white uppercase">{order.pagamento}</p>
+                        <p className="font-sans text-sm text-white uppercase">{order.payment_method}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-heading font-bold text-xl text-tertiary">{formatBRL(order.total)}</p>
+                        <p className="font-heading font-bold text-xl text-tertiary">{formatBRL(order.total_amount)}</p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="p-4 bg-zinc-900/50 flex flex-col gap-2 border-t border-white/5">
+                  <div className="p-4 bg-zinc-950 flex flex-col gap-2 border-t border-white/5">
                     {order.status === 'pendente' && (
                       <div className="flex gap-2">
                         <button onClick={() => handleOrderStatus(order.id, 'confirmado')} className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1"><CheckCircle className="w-4 h-4"/> CONFIRMAR</button>
