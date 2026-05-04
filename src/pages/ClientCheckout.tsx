@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { formatBRL } from '../lib/utils';
-import { api } from '../lib/api';
+import { supabase } from '../integrations/supabase/client';
 import {
   ArrowLeft,
   Minus,
@@ -14,6 +14,7 @@ import {
   RefreshCcw,
   Send
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function ClientCheckout() {
   const navigate = useNavigate();
@@ -33,25 +34,70 @@ export default function ClientCheckout() {
 
   const handleSubmit = async () => {
     if (!formData.nome || !formData.telefone || !formData.endereco) {
-      alert("Por favor, preencha todos os campos de entrega.");
+      toast.error("Preencha todos os campos!");
       return;
     }
+
     setLoading(true);
     try {
-      await api.createOrder({
-        cliente_nome: formData.nome,
-        telefone: formData.telefone,
-        endereco: formData.endereco,
-        pagamento: formData.pagamento,
-        trocoPara: formData.trocoPara,
-        itens: items,
-        total: finalTotal
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // 1. Criar o pedido no Supabase
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user?.id,
+          cliente_nome: formData.nome,
+          customer_name: formData.nome, // Sincronizando com colunas do banco
+          customer_phone: formData.telefone,
+          delivery_address: formData.endereco,
+          payment_method: formData.pagamento,
+          change_for: formData.trocoPara,
+          total_amount: finalTotal,
+          status: 'pendente'
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // 2. Salvar os itens do pedido
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        product_id: null, // Aqui poderíamos vincular a IDs reais de produtos
+        quantity: item.quantity,
+        unit_price: item.price,
+        notes: item.observation || ''
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // 3. Notificar via API (Telegram)
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: order.id,
+          cliente_nome: formData.nome,
+          telefone: formData.telefone,
+          endereco: formData.endereco,
+          pagamento: formData.pagamento,
+          trocoPara: formData.trocoPara,
+          itens: items,
+          total: finalTotal
+        })
       });
+
       clearCart();
-      alert("Pedido enviado com sucesso! Em breve entraremos em contato via Telegram.");
+      toast.success("Pedido enviado! Verifique o Telegram.");
       navigate('/');
     } catch (err) {
-      alert("Erro ao enviar pedido.");
+      console.error(err);
+      toast.error("Erro ao salvar pedido.");
     } finally {
       setLoading(false);
     }
@@ -69,7 +115,6 @@ export default function ClientCheckout() {
 
   return (
     <div className="min-h-screen pb-32">
-      {/* Header */}
       <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-orange-600 active:scale-95 duration-200">
@@ -77,30 +122,18 @@ export default function ClientCheckout() {
           </button>
           <h1 className="font-heading text-sm font-bold uppercase tracking-widest text-orange-600">FINALIZAR PEDIDO</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <a
-            href="https://t.me/Marmitaria_talita_bot"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sky-400 hover:text-sky-300 transition-colors p-1"
-            title="Falar com o Bot no Telegram"
-          >
-            <Send className="w-6 h-6 rotate-[-45deg] translate-y-[-2px]" />
-          </a>
-          <div className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
-            TALITA
-          </div>
+        <div className="text-xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400">
+          TALITA
         </div>
       </header>
 
       {loading ? (
         <div className="flex flex-col items-center justify-center h-[60vh] p-8 text-center space-y-4">
           <div className="w-20 h-20 rounded-full border-4 border-tertiary border-t-transparent animate-spin"></div>
-          <p className="font-heading text-xl text-primary">Enviando seu pedido para a Talita...</p>
+          <p className="font-heading text-xl text-primary">Salvando seu pedido...</p>
         </div>
       ) : (
         <main className="max-w-2xl mx-auto px-container pt-6 space-y-6">
-          {/* Cart Items */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-2xl text-primary font-bold">Seu Carrinho</h2>
@@ -129,126 +162,95 @@ export default function ClientCheckout() {
             </div>
           </section>
 
-          {/* Delivery Info */}
           <section className="space-y-4">
             <h2 className="font-heading text-2xl text-primary font-bold">Dados de Entrega</h2>
             <div className="glass-card rounded-xl p-4 space-y-4">
-              <div className="space-y-1">
-                <label className="font-mono text-xs text-on-surface-variant uppercase">Nome Completo</label>
-                <input 
-                  type="text" 
-                  value={formData.nome}
-                  onChange={e => setFormData({...formData, nome: e.target.value})}
-                  className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none transition-all" 
-                  placeholder="Como devemos te chamar?" 
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-mono text-xs text-on-surface-variant uppercase">Telefone (WhatsApp)</label>
-                <input 
-                  type="text" 
-                  value={formData.telefone}
-                  onChange={e => setFormData({...formData, telefone: e.target.value})}
-                  className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none transition-all" 
-                  placeholder="(00) 00000-0000" 
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-mono text-xs text-on-surface-variant uppercase">Endereço de Entrega</label>
-                <textarea 
-                  value={formData.endereco}
-                  onChange={e => setFormData({...formData, endereco: e.target.value})}
-                  className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none resize-none transition-all" 
-                  placeholder="Rua, número, complemento..." 
-                  rows={3}
-                />
-              </div>
+              <input 
+                type="text" 
+                value={formData.nome}
+                onChange={e => setFormData({...formData, nome: e.target.value})}
+                className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none transition-all" 
+                placeholder="Nome Completo" 
+              />
+              <input 
+                type="text" 
+                value={formData.telefone}
+                onChange={e => setFormData({...formData, telefone: e.target.value})}
+                className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none transition-all" 
+                placeholder="WhatsApp (com DDD)" 
+              />
+              <textarea 
+                value={formData.endereco}
+                onChange={e => setFormData({...formData, endereco: e.target.value})}
+                className="w-full bg-surface-container border-none rounded-lg p-4 text-on-surface focus:ring-2 focus:ring-primary-container outline-none resize-none transition-all" 
+                placeholder="Endereço Completo (Rua, Nº, Bairro)" 
+                rows={3}
+              />
             </div>
           </section>
 
-          {/* Payment */}
           <section className="space-y-4">
-            <h2 className="font-heading text-2xl text-primary font-bold">Forma de Pagamento</h2>
+            <h2 className="font-heading text-2xl text-primary font-bold">Pagamento</h2>
             <div className="grid grid-cols-3 gap-2">
               <button 
                 onClick={() => setFormData({...formData, pagamento: 'pix'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'pix' ? 'border-primary bg-primary/10 ring-1 ring-primary neon-glow-primary' : 'hover:border-primary/50'}`}
+                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'pix' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
               >
-                <QrCode className={formData.pagamento === 'pix' ? 'text-primary' : 'text-zinc-400'} />
-                <span className="font-mono text-xs uppercase text-white">PIX</span>
+                <QrCode className="text-primary" />
+                <span className="font-mono text-xs text-white">PIX</span>
               </button>
               <button 
                 onClick={() => setFormData({...formData, pagamento: 'cartao'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'cartao' ? 'border-primary bg-primary/10 ring-1 ring-primary neon-glow-primary' : 'hover:border-primary/50'}`}
+                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'cartao' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
               >
-                <CreditCard className={formData.pagamento === 'cartao' ? 'text-primary' : 'text-zinc-400'} />
-                <span className="font-mono text-xs uppercase text-white">CARTÃO</span>
+                <CreditCard className="text-primary" />
+                <span className="font-mono text-xs text-white">CARTÃO</span>
               </button>
               <button 
                 onClick={() => setFormData({...formData, pagamento: 'dinheiro'})}
-                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'dinheiro' ? 'border-primary bg-primary/10 ring-1 ring-primary neon-glow-primary' : 'hover:border-primary/50'}`}
+                className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === 'dinheiro' ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
               >
-                <Banknote className={formData.pagamento === 'dinheiro' ? 'text-primary' : 'text-zinc-400'} />
-                <span className="font-mono text-xs uppercase text-white">DINHEIRO</span>
+                <Banknote className="text-primary" />
+                <span className="font-mono text-xs text-white">DINHEIRO</span>
               </button>
             </div>
-
             {formData.pagamento === 'dinheiro' && (
-              <div className="glass-card rounded-xl p-4 mt-2 border-l-4 border-tertiary">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <RefreshCcw className="text-tertiary w-5 h-5" />
-                    <span className="text-sm font-bold text-white">Precisa de troco?</span>
-                  </div>
-                  <input 
-                    type="text" 
-                    value={formData.trocoPara}
-                    onChange={e => setFormData({...formData, trocoPara: e.target.value})}
-                    className="bg-surface-container border-none rounded-lg px-4 py-2 text-on-surface focus:ring-1 focus:ring-tertiary outline-none w-32 text-right" 
-                    placeholder="Troco para..." 
-                  />
-                </div>
-              </div>
+              <input 
+                type="text" 
+                value={formData.trocoPara}
+                onChange={e => setFormData({...formData, trocoPara: e.target.value})}
+                className="w-full bg-surface-container border-none rounded-lg px-4 py-2 text-white" 
+                placeholder="Troco para quanto?" 
+              />
             )}
           </section>
 
-          {/* Summary */}
           <section className="glass-card rounded-xl p-4 space-y-2 mb-8">
-            <div className="flex justify-between items-center text-on-surface-variant">
+            <div className="flex justify-between items-center">
               <span className="text-sm">Subtotal</span>
               <span className="font-heading font-bold text-white">{formatBRL(total)}</span>
             </div>
-            <div className="flex justify-between items-center text-on-surface-variant">
+            <div className="flex justify-between items-center">
               <span className="text-sm">Taxa de Entrega</span>
               <span className="font-heading font-bold text-secondary">{formatBRL(deliveryFee)}</span>
             </div>
             <div className="h-px bg-white/10 my-2"></div>
             <div className="flex justify-between items-center">
-              <span className="font-heading font-bold text-lg text-white">Total do Pedido</span>
-              <span className="font-heading text-2xl font-bold text-tertiary drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]">
-                {formatBRL(finalTotal)}
-              </span>
+              <span className="font-heading font-bold text-lg text-white">Total</span>
+              <span className="font-heading text-2xl font-bold text-tertiary">{formatBRL(finalTotal)}</span>
             </div>
           </section>
         </main>
       )}
 
-      {/* Bottom Action Bar */}
       {!loading && (
         <div className="fixed bottom-0 left-0 right-0 p-container bg-zinc-950/90 backdrop-blur-2xl border-t border-white/5 z-50">
           <button 
             onClick={handleSubmit}
-            className="w-full bg-gradient-to-r from-red-600 to-orange-500 p-4 rounded-xl font-heading text-xl font-bold text-white neon-glow-btn active:scale-95 transition-all flex items-center justify-center gap-4"
+            className="w-full bg-gradient-to-r from-red-600 to-orange-500 p-4 rounded-xl font-heading text-xl font-bold text-white shadow-2xl active:scale-95 transition-all"
           >
-            <ShoppingBag className="w-6 h-6" />
             FINALIZAR PEDIDO
           </button>
-          <div className="text-center mt-2 pb-2">
-             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">
-               Pedido será enviado via WhatsApp & Telegram
-             </p>
-             <p className="text-[9px] text-zinc-600 mt-1 uppercase">Aviso de Privacidade: Seus dados serão usados apenas para entrega local (LGPD).</p>
-          </div>
         </div>
       )}
     </div>
