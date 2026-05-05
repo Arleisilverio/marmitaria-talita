@@ -23,6 +23,13 @@ export default function AdminDashboard() {
   const [storeSlug, setStoreSlug] = useState<string>('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Modals state
+  const [showDrinkModal, setShowDrinkModal] = useState(false);
+  const [newDrinkName, setNewDrinkName] = useState('');
+  const [newDrinkPrice, setNewDrinkPrice] = useState('');
+  const [showMeatModal, setShowMeatModal] = useState(false);
+  const [newMeatName, setNewMeatName] = useState('');
 
   useEffect(() => {
     checkAccess();
@@ -89,17 +96,31 @@ export default function AdminDashboard() {
   };
 
   const addDrink = () => {
-    const name = prompt("Nome da bebida?");
-    const price = prompt("Preço?");
-    if (name && price) {
-      const newDrink = { id: Date.now().toString(), name, price: price.replace(',', '.') };
+    setShowDrinkModal(true);
+  };
+
+  const handleAddDrinkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newDrinkName && newDrinkPrice) {
+      const newDrink = { id: Date.now().toString(), name: newDrinkName, price: newDrinkPrice.replace(',', '.') };
       setMenu({ ...menu, drinks: [...(menu.drinks || []), newDrink] });
+      setShowDrinkModal(false);
+      setNewDrinkName('');
+      setNewDrinkPrice('');
     }
   };
 
   const addMeat = () => {
-    const name = prompt("Nome da carne?");
-    if (name) setMenu({ ...menu, meats: [...(menu.meats || []), name] });
+    setShowMeatModal(true);
+  };
+
+  const handleAddMeatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMeatName) {
+      setMenu({ ...menu, meats: [...(menu.meats || []), newMeatName] });
+      setShowMeatModal(false);
+      setNewMeatName('');
+    }
   };
 
   const handleImageUpload = async (e: any) => {
@@ -559,6 +580,52 @@ export default function AdminDashboard() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* MODAL DE BEBIDA */}
+      <AnimatePresence>
+        {showDrinkModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-zinc-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2"><Coffee className="w-5 h-5 text-primary"/> Nova Bebida/Extra</h3>
+                <button onClick={() => setShowDrinkModal(false)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5"/></button>
+              </div>
+              <form onSubmit={handleAddDrinkSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome do Item</label>
+                  <input autoFocus type="text" value={newDrinkName} onChange={e => setNewDrinkName(e.target.value)} placeholder="Ex: Coca-Cola 2L" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Preço (R$)</label>
+                  <input type="text" value={newDrinkPrice} onChange={e => setNewDrinkPrice(e.target.value)} placeholder="Ex: 12.00" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE CARNE */}
+      <AnimatePresence>
+        {showMeatModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-zinc-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2"><Beef className="w-5 h-5 text-primary"/> Nova Opção de Carne</h3>
+                <button onClick={() => setShowMeatModal(false)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5"/></button>
+              </div>
+              <form onSubmit={handleAddMeatSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome da Carne</label>
+                  <input autoFocus type="text" value={newMeatName} onChange={e => setNewMeatName(e.target.value)} placeholder="Ex: Bife a Cavalo" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
