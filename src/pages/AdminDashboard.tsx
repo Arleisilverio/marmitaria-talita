@@ -76,8 +76,9 @@ export default function AdminDashboard() {
     try {
       await saveMenuApi(menu);
       toast.success("Cardápio salvo com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao salvar.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao salvar.");
     } finally {
       setSaving(false);
     }
