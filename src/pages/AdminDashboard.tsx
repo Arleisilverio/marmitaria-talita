@@ -5,7 +5,7 @@ import { formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { 
   Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
-  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2, LogOut
+  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2, LogOut, ArrowLeft
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -31,7 +31,6 @@ export default function AdminDashboard() {
     setLoading(true);
     await Promise.all([
       api.getMenu().then(data => {
-        // Garante que a propriedade slides exista
         if (!data.slides) data.slides = [];
         setMenu(data);
       }),
@@ -51,7 +50,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Gerenciamento de Slides
   const addSlide = () => setMenu({ ...menu, slides: [...(menu.slides || []), { id: 's' + Date.now(), image: '', title: '', description: '' }] });
   const updateSlide = (id: string, field: string, value: any) => setMenu({ ...menu, slides: menu.slides.map((s: any) => s.id === id ? { ...s, [field]: value } : s) });
   const removeSlide = (id: string) => setMenu({ ...menu, slides: menu.slides.filter((s: any) => s.id !== id) });
@@ -95,7 +93,6 @@ export default function AdminDashboard() {
     setTimeout(() => { window.print(); setPrintingOrder(null); }, 100);
   };
 
-  // Função para fazer logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
@@ -154,6 +151,9 @@ export default function AdminDashboard() {
         <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-center w-full px-4 py-3">
           <div className="max-w-7xl w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
             <div className="flex items-center gap-3 min-w-max mr-4">
+              <button onClick={() => navigate('/')} className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-colors" title="Voltar à Loja">
+                <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
               <h1 className="text-lg md:text-2xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
                 PAINEL DA CHEF
               </h1>
@@ -188,7 +188,6 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              {/* Botão de Logout Adicionado Aqui */}
               <div className="flex flex-col items-center bg-zinc-900/50 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl px-4 py-1.5 md:py-2 transition-colors ml-1">
                 <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Admin</span>
                 <button 

@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -24,7 +24,6 @@ export default function ClientHome() {
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // Controle do Carrossel
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => { if (location.state?.tab) setActiveTab(location.state.tab); }, [location]);
@@ -39,7 +38,6 @@ export default function ClientHome() {
     return () => clearInterval(interval);
   }, []);
 
-  // Efeito para rodar o carrossel automaticamente
   useEffect(() => {
     const slideCount = menu?.slides?.length || 0;
     if (slideCount <= 1 || activeTab !== 'menu') return;
@@ -59,7 +57,6 @@ export default function ClientHome() {
     );
   }
 
-  // Define os slides a serem mostrados. Se não houver nenhum configurado no admin, cria um "falso" com a imagem do prato principal.
   const activeSlides = menu.slides && menu.slides.length > 0 
     ? menu.slides 
     : [{ id: 'default', image: menu.image, title: 'Especial de Hoje', description: menu.title }];
@@ -82,10 +79,19 @@ export default function ClientHome() {
       <header className="bg-surface/80 backdrop-blur-xl docked full-width top-0 sticky z-50 border-b border-white/5 px-4 md:px-8 py-3 w-full">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            {activeTab !== 'menu' && <button onClick={() => setActiveTab('menu')} className="text-secondary hover:text-white transition-colors p-1 -ml-1 md:hidden"><ArrowLeft className="w-6 h-6" /></button>}
-            <Leaf className={`text-secondary w-6 h-6 ${activeTab !== 'menu' ? 'hidden md:block' : ''}`} />
-            <h1 className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-tertiary to-secondary">
+            {/* Botão de voltar agora aparece em Perfil/Pedidos tanto no mobile quanto no desktop */}
+            {activeTab !== 'menu' && (
+              <button onClick={() => setActiveTab('menu')} className="text-secondary hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/5">
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            )}
+            <Leaf className={`text-secondary w-6 h-6 ${activeTab !== 'menu' ? 'hidden sm:block' : ''}`} />
+            <h1 className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-tertiary to-secondary hidden sm:block">
               MARMITARIA TALITA
+            </h1>
+            {/* Texto curto para mobile quando a seta está visível */}
+            <h1 className="font-heading text-lg font-black text-white sm:hidden block ml-1">
+              {activeTab === 'orders' ? 'MEUS PEDIDOS' : activeTab === 'profile' ? 'MEU PERFIL' : 'MARMITARIA'}
             </h1>
           </div>
 
@@ -100,12 +106,12 @@ export default function ClientHome() {
             {menu.isOpen ? (
               <div className="status-badge-glow bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-2 border border-secondary/20">
                 <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-                <span className="font-mono text-[10px] text-secondary font-bold tracking-widest">ABERTO</span>
+                <span className="font-mono text-[10px] text-secondary font-bold tracking-widest hidden sm:inline">ABERTO</span>
               </div>
             ) : (
               <div className="status-badge-glow bg-red-500/10 px-3 py-1 rounded-full flex items-center gap-2 border border-red-500/20">
                 <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                <span className="font-mono text-[10px] text-red-500 font-bold tracking-widest">FECHADO</span>
+                <span className="font-mono text-[10px] text-red-500 font-bold tracking-widest hidden sm:inline">FECHADO</span>
               </div>
             )}
           </div>
