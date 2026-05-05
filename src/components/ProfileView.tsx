@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { User, MapPin, Phone, Settings, ChevronRight, Gift, LogOut, ShieldAlert } from 'lucide-react';
+import { User, MapPin, Phone, ChevronRight, Gift, LogOut } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 
 export default function ProfileView() {
@@ -49,8 +49,6 @@ export default function ProfileView() {
     );
   }
 
-  const isAdmin = user.email === 'arleisilverio41@gmail.com';
-
   return (
     <div className="px-container pt-8 space-y-8 pb-24">
       <div className="flex items-center gap-6">
@@ -68,24 +66,6 @@ export default function ProfileView() {
           </div>
         </div>
       </div>
-
-      {isAdmin && (
-        <button 
-          onClick={() => navigate('/admin')}
-          className="w-full bg-gradient-to-r from-orange-600 to-red-600 p-4 rounded-2xl flex items-center justify-between group shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-[1.02] transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-white uppercase tracking-wider">Painel da Cozinha</p>
-              <p className="text-xs text-white/80">Gerenciar cardápio e pedidos</p>
-            </div>
-          </div>
-          <ChevronRight className="text-white group-hover:translate-x-1 transition-transform" />
-        </button>
-      )}
 
       <div className="space-y-3">
         <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest ml-1">Minhas Informações</p>

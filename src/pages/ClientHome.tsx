@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
+import { supabase } from '../integrations/supabase/client';
 import {
   Utensils,
   Receipt,
@@ -13,7 +14,8 @@ import {
   Plus,
   Leaf,
   Send,
-  ArrowLeft
+  ArrowLeft,
+  ShieldAlert
 } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
@@ -42,13 +44,29 @@ const itemVariants = {
 
 export default function ClientHome() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addItem, total, items } = useCart();
   const [menu, setMenu] = useState<any>(null);
   const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Lê a rota caso o admin tenha clicado na aba e vindo do painel
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location]);
 
   useEffect(() => {
+    // Verifica se é o admin
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email === 'arleisilverio41@gmail.com') {
+        setIsAdmin(true);
+      }
+    });
+
     api.getMenu().then(data => {
       setMenu(data);
       setLoading(false);
@@ -247,7 +265,7 @@ export default function ClientHome() {
       {/* AI Assistant */}
       <AIChat menuContext={menu} />
 
-      {/* Sticky Checkout Button (Só aparece na aba de menu) */}
+      {/* Sticky Checkout Button */}
       <AnimatePresence>
         {items.length > 0 && activeTab === 'menu' && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 left-0 right-0 px-container z-40">
@@ -266,25 +284,36 @@ export default function ClientHome() {
       <nav className="bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe">
         <button 
           onClick={() => setActiveTab('menu')}
-          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'menu' ? "text-primary" : "text-on-surface-variant/40")}
+          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'menu' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}
         >
           <Utensils className="w-6 h-6 mb-1" />
           <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span>
         </button>
         <button 
           onClick={() => setActiveTab('orders')}
-          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'orders' ? "text-primary" : "text-on-surface-variant/40")}
+          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'orders' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}
         >
           <Receipt className="w-6 h-6 mb-1" />
           <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span>
         </button>
         <button 
           onClick={() => setActiveTab('profile')}
-          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'profile' ? "text-primary" : "text-on-surface-variant/40")}
+          className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'profile' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}
         >
           <User className="w-6 h-6 mb-1" />
           <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span>
         </button>
+        
+        {/* ABA EXCLUSIVA DO ADMIN */}
+        {isAdmin && (
+          <button 
+            onClick={() => navigate('/admin')}
+            className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-orange-500"
+          >
+            <ShieldAlert className="w-6 h-6 mb-1 text-orange-500/80" />
+            <span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Painel</span>
+          </button>
+        )}
       </nav>
     </div>
   );

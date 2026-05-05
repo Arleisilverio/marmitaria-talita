@@ -3,23 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL } from '../lib/utils';
 import { 
-  Utensils, Receipt, BarChart3, CheckCircle, XCircle, Printer, Copy, 
-  Camera, Trash2, Plus, Save, Image as ImageIcon, ArrowLeft, Calendar
+  Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
+  Camera, Save, Image as ImageIcon, ArrowLeft, Calendar, User, ShieldAlert
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  // NOVA ESTRUTURA DE ABAS: 'menu' | 'orders' | 'reports'
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'reports'>('orders');
-  
   const [menu, setMenu] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [printingOrder, setPrintingOrder] = useState<any>(null);
-  
-  // Data selecionada para o relatório contábil (Hoje por padrão)
   const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
@@ -41,7 +37,6 @@ export default function AdminDashboard() {
 
   const fetchOrders = () => api.getOrders().then(setOrders);
 
-  // -- Funções de Cardápio (Já feitas) --
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -53,10 +48,8 @@ export default function AdminDashboard() {
   const handlePriceChange = (size: string, value: number) => setMenu({ ...menu, prices: { ...menu.prices, [size]: value } });
   const updateMeat = (id: string, field: string, value: any) => setMenu({ ...menu, meats: menu.meats.map((m: any) => m.id === id ? { ...m, [field]: value } : m) });
   const addMeat = () => setMenu({ ...menu, meats: [...menu.meats, { id: 'm' + Date.now(), name: '', available: true }] });
-  const removeMeat = (id: string) => setMenu({ ...menu, meats: menu.meats.filter((m: any) => m.id !== id) });
   const updateDrink = (id: string, field: string, value: any) => setMenu({ ...menu, drinks: menu.drinks.map((d: any) => d.id === id ? { ...d, [field]: value } : d) });
   const addDrink = () => setMenu({ ...menu, drinks: [...menu.drinks, { id: 'd' + Date.now(), name: '', price: 0 }] });
-  const removeDrink = (id: string) => setMenu({ ...menu, drinks: menu.drinks.filter((d: any) => d.id !== id) });
 
   const handleMenuSave = async () => {
     try {
@@ -84,18 +77,14 @@ export default function AdminDashboard() {
 
   if (loading && !menu) return <div className="p-8 text-white flex justify-center mt-20">Carregando painel da cozinha...</div>;
 
-  // Filtros
   const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
   const reportOrders = orders.filter(o => isSameDay(new Date(o.created_at), parseISO(reportDate)));
-
-  // Cálculos de contabilidade
   const deliveredOrders = reportOrders.filter(o => o.status === 'entregue' || o.status === 'confirmado');
   const totalRevenue = deliveredOrders.reduce((acc, o) => acc + Number(o.total_amount), 0);
   const ticketMedio = deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
 
   return (
-    <div className="min-h-screen bg-surface md:pb-0 pb-20">
-      {/* Impressão Oculta */}
+    <div className="min-h-screen bg-surface pb-32 md:pb-0">
       {printingOrder && (
         <div className="fixed inset-0 bg-white z-[9999] p-8 text-black font-mono print-only block">
           <div className="max-w-[80mm] mx-auto border-2 border-dashed border-black p-4">
@@ -134,11 +123,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Interface Admin */}
       <div className="no-print">
         <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="text-orange-600 hover:text-white transition-colors p-1"><ArrowLeft className="w-6 h-6" /></button>
             <h1 className="text-lg md:text-xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
               PAINEL DA CHEF
             </h1>
@@ -150,7 +137,6 @@ export default function AdminDashboard() {
         </header>
 
         <main className="max-w-6xl mx-auto px-container py-8 flex flex-col gap-8 md:pl-28">
-          
           <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
             <div>
               <p className="font-mono text-xs text-primary mb-1 uppercase">Gestão Completa</p>
@@ -171,7 +157,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* ABA CARDÁPIO (Igual ao que já estava) */}
           {activeTab === 'menu' && menu && (
             <div className="space-y-8 pb-12 animate-fade-in">
               <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
@@ -211,7 +196,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-8">
-                {/* Carnes & Bebidas compactados */}
                 <div className="space-y-4">
                   <div className="flex justify-between border-b border-white/10 pb-2"><label className="text-zinc-500 text-xs font-mono uppercase">Carnes do Dia</label><button onClick={addMeat} className="text-orange-500 text-xs font-bold">+ ADC</button></div>
                   {menu.meats.map((meat: any) => (
@@ -228,7 +212,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ABA OPERAÇÃO HOJE */}
           {activeTab === 'orders' && (
             <div className="animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -284,7 +267,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ABA CONTABILIDADE / RELATÓRIOS */}
           {activeTab === 'reports' && (
             <div className="space-y-6 animate-fade-in">
               <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -346,9 +328,40 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-
         </main>
       </div>
+
+      {/* A MESMA BARRA INFERIOR PARA MANTER O APP UNIFICADO */}
+      <nav className="bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe md:hidden">
+        <button 
+          onClick={() => navigate('/', { state: { tab: 'menu' } })}
+          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
+        >
+          <Utensils className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span>
+        </button>
+        <button 
+          onClick={() => navigate('/', { state: { tab: 'orders' } })}
+          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
+        >
+          <Receipt className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span>
+        </button>
+        <button 
+          onClick={() => navigate('/', { state: { tab: 'profile' } })}
+          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
+        >
+          <User className="w-6 h-6 mb-1" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span>
+        </button>
+        <button 
+          className="flex flex-col items-center justify-center transition-all text-orange-500"
+        >
+          <ShieldAlert className="w-6 h-6 mb-1 text-orange-500" />
+          <span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500">Painel</span>
+        </button>
+      </nav>
+
     </div>
   );
 }
