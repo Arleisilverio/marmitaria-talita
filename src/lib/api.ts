@@ -2,6 +2,9 @@ import { supabase } from '../integrations/supabase/client';
 
 const API_BASE = '/api';
 
+// Senha sincronizada com o backend (Band-aid de segurança temporário)
+const ADMIN_SECRET = "talita_admin_secreto_2024"; 
+
 export const api = {
   getMenu: async () => {
     const res = await fetch(`${API_BASE}/menu`);
@@ -10,13 +13,19 @@ export const api = {
   updateMenu: async (data: any) => {
     const res = await fetch(`${API_BASE}/menu`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-admin-secret': ADMIN_SECRET // Enviando a chave para abrir a "fechadura" do servidor
+      },
       body: JSON.stringify(data)
     });
+    
+    if (!res.ok) {
+      throw new Error("Não autorizado a alterar o cardápio.");
+    }
     return res.json();
   },
   getOrders: async () => {
-    // Agora busca PERMANENTEMENTE do banco de dados Supabase
     const { data, error } = await supabase
       .from('orders')
       .select('*')
@@ -29,7 +38,6 @@ export const api = {
     return data;
   },
   updateOrderStatus: async (id: string, status: string) => {
-    // Atualiza permanentemente no banco de dados
     const { data, error } = await supabase
       .from('orders')
       .update({ status })
