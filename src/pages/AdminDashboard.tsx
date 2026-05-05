@@ -7,16 +7,17 @@ import {
   Utensils, Receipt, CheckCircle, Clock, Bike, 
   Plus, Trash2, LogOut, ArrowLeft, Ban, 
   Settings, Save, Coffee, Beef, X, DollarSign,
-  ChevronRight, AlertCircle, Camera, ImageIcon
+  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar
 } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { useOrders, useMenu, useUpdateOrderStatus, useSaveMenu } from '../lib/hooks';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports'>('orders');
+  const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [menu, setMenu] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [storeSlug, setStoreSlug] = useState<string>('');
@@ -150,6 +151,18 @@ export default function AdminDashboard() {
   );
 
   const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
+  
+  // Reports Logic
+  const reportOrders = orders.filter(o => {
+    try {
+      return isSameDay(new Date(o.created_at), new Date(reportDate + 'T12:00:00'));
+    } catch {
+      return false;
+    }
+  });
+  const deliveredOrders = reportOrders.filter(o => o.status === 'entregue');
+  const totalRevenue = deliveredOrders.reduce((acc, order) => acc + order.total_amount, 0);
+  const ticketMedio = deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -192,7 +205,7 @@ export default function AdminDashboard() {
 
       <main className="max-w-6xl mx-auto p-4 md:p-8">
         {/* NAVEGAÇÃO DE ABAS */}
-        <div className="flex gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5">
+        <div className="flex flex-wrap gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5">
           <button onClick={() => setActiveTab('orders')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'orders' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Receipt className="w-4 h-4" /> Pedidos ({todayOrders.length})
           </button>
@@ -201,6 +214,9 @@ export default function AdminDashboard() {
           </button>
           <button onClick={() => setActiveTab('settings')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'settings' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Settings className="w-4 h-4" /> Configs
+          </button>
+          <button onClick={() => setActiveTab('reports')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'reports' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
+            <Calendar className="w-4 h-4" /> Relatórios
           </button>
         </div>
 
@@ -468,6 +484,75 @@ export default function AdminDashboard() {
                   <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-tighter">Sair do painel administrativo imediatamente.</p>
                 </div>
                 <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="bg-red-500 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/20">LOGOUT</button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ABA CONTABILIDADE / RELATÓRIOS */}
+          {activeTab === 'reports' && (
+            <motion.div key="reports" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+              <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data do relatório</p>
+                    <input 
+                      type="date" 
+                      value={reportDate} 
+                      onChange={(e) => setReportDate(e.target.value)}
+                      className="bg-transparent text-xl font-heading font-bold text-white outline-none mt-1 [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Faturamento Dia</p>
+                  <p className="text-3xl font-heading font-black text-green-400">{formatBRL(totalRevenue)}</p>
+                </div>
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Ticket Médio</p>
+                  <p className="text-3xl font-heading font-black text-white">{formatBRL(ticketMedio)}</p>
+                </div>
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Marmitas Entregues</p>
+                  <p className="text-3xl font-heading font-black text-white">{deliveredOrders.length}</p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl border border-white/5 overflow-hidden mt-8 shadow-xl">
+                <div className="p-4 border-b border-white/5 bg-zinc-950 flex justify-between items-center">
+                  <h3 className="font-bold text-white font-heading">Histórico Detalhado</h3>
+                  <span className="text-xs text-zinc-500 font-mono bg-white/5 px-2 py-1 rounded">{reportDate ? format(parseISO(reportDate), 'dd/MM/yyyy') : '-'}</span>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {reportOrders.length === 0 ? (
+                    <div className="p-12 text-center text-zinc-500">
+                      <Receipt className="w-8 h-8 mx-auto mb-3 opacity-20"/>
+                      <p>Nenhum registro encontrado para esta data.</p>
+                    </div>
+                  ) : (
+                    reportOrders.map(order => (
+                      <div key={order.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/5 transition-colors">
+                        <div>
+                          <p className="font-bold text-white">{order.customer_name}</p>
+                          <p className="text-xs text-zinc-500 font-mono mt-1">
+                            {format(new Date(order.created_at), "HH:mm")} • {order.payment_method?.toUpperCase()}
+                          </p>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <p className="font-bold text-primary text-lg">{formatBRL(order.total_amount)}</p>
+                          <p className={`text-[10px] uppercase font-bold mt-1 inline-block px-2 py-0.5 rounded ${order.status === 'entregue' ? 'bg-green-500/10 text-green-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                            {order.status}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </motion.div>
           )}
