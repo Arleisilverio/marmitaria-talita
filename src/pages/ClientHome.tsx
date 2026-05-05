@@ -1,187 +1,244 @@
-"use client";
-
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { toast } from 'react-hot-toast';
+import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import { useMenu } from '../lib/hooks';
+import { formatBRL, cn } from '../lib/utils';
 import { useCart } from '../contexts/CartContext';
-import { cn, formatBRL } from '../lib/utils';
-import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert } from 'lucide-react';
+import { 
+  ShoppingBag, Star, Clock, MapPin, 
+  ChevronRight, Utensils, Coffee, Beef,
+  Info, Sparkles, MessageSquare, Menu,
+  User, Receipt, LogIn
+} from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
-
-const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.3 } } };
-const itemVariants = { hidden: { opacity: 0, y: 20, filter: 'blur(10px)' }, show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring', stiffness: 100, damping: 15 } } };
+import { supabase } from '../integrations/supabase/client';
+import { toast } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function ClientHome() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { addItem, total, items } = useCart();
+  const { slug } = useParams();
+  const storeSlug = slug || 'marmitaria-talita';
+  const { addItem, items, total } = useCart();
   
-  const [menu, setMenu] = useState<any>(null);
-  const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
-  const [isStoreAdmin, setIsStoreAdmin] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [selectedMeat, setSelectedMeat] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const SLUG_FIXO = 'marmitaria-talita';
-
-  useEffect(() => { 
-    if (location.state?.tab) setActiveTab(location.state.tab); 
-  }, [location]);
+  const { data: menu, isLoading: loading } = useMenu(storeSlug);
 
   useEffect(() => {
-    // Verifica se é admin
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user?.email === 'arleisilverio41@gmail.com') {
-        setIsStoreAdmin(true);
-      }
-    });
+    checkAuth();
+  }, [storeSlug]);
 
-    // Carrega o cardápio fixo
-    api.getMenu(SLUG_FIXO).then(data => {
-      setMenu(data);
-      setLoading(false);
-    });
-  }, []);
-
-  // Timer do Carrossel
   useEffect(() => {
-    const slideCount = menu?.slides?.length || 0;
-    if (slideCount <= 1 || activeTab !== 'menu') return;
-    const timer = setInterval(() => setCurrentSlide((prev) => (prev + 1) % slideCount), 5000);
-    return () => clearInterval(timer);
-  }, [menu?.slides, activeTab]);
+    if (menu?.meats?.length > 0 && !selectedMeat) {
+      const firstMeat = typeof menu.meats[0] === 'object' ? menu.meats[0].name : menu.meats[0];
+      setSelectedMeat(firstMeat);
+    }
+  }, [menu, selectedMeat]);
 
-  if (loading || !menu) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-white">
-      <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-      <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Preparando Marmitaria...</p>
-    </div>
-  );
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsLoggedIn(!!user);
+  };
 
-  const activeSlides = menu.slides?.length > 0 
-    ? menu.slides 
-    : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor caseiro todos os dias' }];
-
-  const handleAddDish = () => {
-    if (!menu.isOpen) return toast.error("Loja fechada no momento!");
-    addItem({ 
-      id: `marmita_diaria`, 
-      name: menu.title, 
-      size: selectedSize.toUpperCase() as any, 
-      price: menu.prices[selectedSize], 
-      quantity: 1, 
-      type: 'dish' 
+  const handleAddToCart = (size: 'p' | 'm' | 'g', price: string) => {
+    if (!selectedMeat) return toast.error("Selecione uma carne primeiro!");
+    addItem({
+      id: `marmita-${size}-${Date.now()}`,
+      name: `Marmitex ${size.toUpperCase()}`,
+      price: Number(price),
+      quantity: 1,
+      size: size.toUpperCase(),
+      meat: selectedMeat
     });
     toast.success("Adicionado ao carrinho!");
   };
 
   const handleAddDrink = (drink: any) => {
-    if (!menu.isOpen) return toast.error("Loja fechada!");
-    addItem({ 
-      id: drink.id, 
-      name: drink.name, 
-      price: drink.price, 
-      quantity: 1, 
-      type: 'drink' 
+    addItem({
+      id: drink.id,
+      name: drink.name,
+      price: Number(drink.price),
+      quantity: 1
     });
     toast.success(`${drink.name} adicionado!`);
   };
 
-  return (
-    <div className="min-h-screen pb-32 md:pb-12 bg-background">
-      {/* HEADER */}
-      <header className="bg-surface/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 sticky top-0 z-50 w-full">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Leaf className="text-secondary w-6 h-6" />
-            <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter">
-              {menu.title}
-            </h1>
-          </div>
+  if (loading) return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-[0.3em]">Carregando Sabores...</p>
+    </div>
+  );
 
-          <nav className="hidden md:flex items-center gap-8">
-            <button onClick={() => setActiveTab('menu')} className={cn("text-xs font-bold uppercase", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>Cardápio</button>
-            <button onClick={() => setActiveTab('orders')} className={cn("text-xs font-bold uppercase", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
-            <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
-            {isStoreAdmin && (
-              <button onClick={() => navigate('/admin')} className="text-xs font-bold uppercase text-orange-500 border border-orange-500/20 px-3 py-1 rounded-full flex items-center gap-1">
-                <ShieldAlert size={14}/> ADMIN
+  if (!menu) return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-8 text-center">
+      <div>
+        <h2 className="text-white font-black text-2xl mb-4">RESTAURANTE NÃO ENCONTRADO</h2>
+        <p className="text-zinc-500 mb-8">O link que você acessou parece estar incorreto.</p>
+        <button onClick={() => navigate('/')} className="bg-primary px-8 py-4 rounded-2xl text-white font-bold">Voltar ao Início</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background pb-32">
+      {/* HEADER PREMIUM */}
+      <header className="relative h-64 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-background z-10" />
+        <img 
+          src="https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&q=80&w=1000" 
+          className="w-full h-full object-cover scale-110 blur-[2px] opacity-40" 
+          alt="Capa"
+        />
+        
+        <div className="absolute bottom-0 left-0 w-full p-6 z-20">
+          <div className="max-w-4xl mx-auto flex items-end justify-between gap-6">
+            <div className="flex-grow">
+               <div className="flex items-center gap-2 mb-3">
+                 <span className={cn(
+                   "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                   menu.isOpen ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                 )}>
+                   {menu.isOpen ? 'Aberto Agora' : 'Fechado'}
+                 </span>
+                 <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1.5 border border-white/10">
+                   <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                   <span className="text-white text-[10px] font-black">4.9 (120+)</span>
+                 </div>
+               </div>
+               <h1 className="text-4xl md:text-5xl font-black text-white leading-none uppercase tracking-tighter mb-2">{menu.title}</h1>
+               <p className="text-zinc-400 text-sm max-w-xl font-medium leading-relaxed">{menu.description}</p>
+            </div>
+            {!isLoggedIn && (
+              <button onClick={() => navigate('/login')} className="bg-white text-black p-4 rounded-2xl shadow-xl hover:scale-105 transition-all">
+                <LogIn className="w-6 h-6" />
               </button>
             )}
-          </nav>
-
-          <div className={cn("px-3 py-1 rounded-full text-[10px] font-bold border", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>
-            {menu.isOpen ? 'ABERTO' : 'FECHADO'}
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto w-full">
+      {/* INFO BAR */}
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-3 gap-4 bg-zinc-900/50 p-2 rounded-3xl border border-white/5 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center py-4 gap-1 border-r border-white/5">
+             <Clock className="w-4 h-4 text-primary" />
+             <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Entrega</span>
+             <span className="text-white text-xs font-bold">{menu.prepTime || '40-60'} min</span>
+          </div>
+          <div className="flex flex-col items-center justify-center py-4 gap-1 border-r border-white/5">
+             <MapPin className="w-4 h-4 text-primary" />
+             <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Taxa</span>
+             <span className="text-white text-xs font-bold">{formatBRL(menu.deliveryFee || 0)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center py-4 gap-1">
+             <Info className="w-4 h-4 text-primary" />
+             <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Pedido</span>
+             <span className="text-white text-xs font-bold">Mín. R$ 15</span>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-4xl mx-auto p-6 space-y-12">
         <AnimatePresence mode="wait">
           {activeTab === 'menu' && (
-            <motion.div key="menu-tab" variants={containerVariants} initial="hidden" animate="show">
-              
-              {/* CARROSSEL */}
-              <section className="px-container mt-6">
-                <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5">
-                   <AnimatePresence mode="wait">
-                     <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0">
-                       <img className="w-full h-full object-cover opacity-60" src={activeSlides[currentSlide].image} alt="Destaque" />
-                       <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
-                       <div className="absolute bottom-10 left-8">
-                          <h2 className="font-heading text-3xl font-bold text-white">{activeSlides[currentSlide].title}</h2>
-                          <p className="text-secondary font-mono text-sm">{activeSlides[currentSlide].description}</p>
-                       </div>
-                     </motion.div>
-                   </AnimatePresence>
+            <motion.div 
+              key="menu"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-12"
+            >
+              {/* SELEÇÃO DE CARNES */}
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                    <Beef className="w-4 h-4 text-primary" /> Escolha sua Proteína
+                  </h3>
+                  <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Obrigatório</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {menu.meats?.map((meat: any, idx: number) => {
+                    // FIX: Handle object or string
+                    const meatName = typeof meat === 'object' ? meat.name : meat;
+                    return (
+                      <button 
+                        key={idx}
+                        onClick={() => setSelectedMeat(meatName)}
+                        className={cn(
+                          "px-4 py-5 rounded-2xl border text-xs font-bold transition-all text-center uppercase tracking-tight",
+                          selectedMeat === meatName 
+                            ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-95" 
+                            : "bg-zinc-900 border-white/5 text-zinc-500 hover:border-zinc-700"
+                        )}
+                      >
+                        {meatName}
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
 
-              {/* PRATO PRINCIPAL */}
-              <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
-                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden">
-                  <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
-                </motion.div>
-                
-                <motion.div variants={itemVariants} className="flex flex-col justify-center">
-                  <h3 className="font-heading text-4xl font-bold text-white mb-4">{menu.title}</h3>
-                  <p className="text-on-surface-variant text-lg mb-8">{menu.description}</p>
-                  
-                  <div className="mb-8">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-3">Tamanho</p>
-                    <div className="flex gap-3">
-                      {(['p', 'm', 'g'] as const).map(size => (
-                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-3 px-6 rounded-2xl font-bold border", selectedSize === size ? "bg-primary text-white border-primary" : "bg-zinc-900 text-zinc-500 border-white/5")}>
-                          {size.toUpperCase()} • {formatBRL(menu.prices[size])}
-                        </button>
-                      ))}
+              {/* TAMANHOS */}
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                    <Utensils className="w-4 h-4 text-primary" /> Tamanhos Disponíveis
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { id: 'p', label: 'Marmita P', desc: 'Ideal para uma pessoa (350g)', price: menu.prices.p },
+                    { id: 'm', label: 'Marmita M', desc: 'Tamanho padrão (500g)', price: menu.prices.m },
+                    { id: 'g', label: 'Marmita G', desc: 'Para quem tem fome (750g)', price: menu.prices.g },
+                  ].map(item => (
+                    <div key={item.id} className="bg-zinc-900/40 rounded-[32px] p-8 border border-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+                      <div className="w-16 h-16 bg-black rounded-3xl flex items-center justify-center mb-6 border border-white/5 group-hover:scale-110 transition-transform">
+                        <Utensils className="w-8 h-8 text-primary" />
+                      </div>
+                      <h4 className="text-white font-black text-lg uppercase tracking-tight mb-2">{item.label}</h4>
+                      <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest mb-6">{item.desc}</p>
+                      <div className="text-2xl font-black text-white mb-8 font-mono">{formatBRL(item.price)}</div>
+                      <button 
+                        onClick={() => handleAddToCart(item.id as any, item.price)}
+                        className="w-full bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl hover:bg-primary hover:text-white"
+                      >
+                        Selecionar <ChevronRight className="w-3 h-3" />
+                      </button>
                     </div>
-                  </div>
-                  
-                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl", menu.isOpen ? "bg-primary text-white" : "bg-zinc-800 text-zinc-600")}>
-                    ADICIONAR AO PEDIDO
-                  </button>
-                </motion.div>
+                  ))}
+                </div>
               </section>
 
               {/* BEBIDAS */}
-              <section className="px-container mt-16 pb-20">
-                <h4 className="font-heading text-2xl font-bold text-white mb-6">Bebidas e Extras</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <section>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                    <Coffee className="w-4 h-4 text-primary" /> Bebidas e Gelados
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {menu.drinks?.map((drink: any) => (
-                    <div key={drink.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/5">
-                      <div>
-                        <p className="font-bold text-white">{drink.name}</p>
-                        <p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p>
+                    <div key={drink.id} className="bg-zinc-900/40 border border-white/5 p-6 rounded-3xl flex justify-between items-center group hover:bg-zinc-900 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center border border-white/5">
+                          <Coffee className="w-6 h-6 text-zinc-700" />
+                        </div>
+                        <div>
+                          <p className="text-white font-bold text-sm uppercase">{drink.name}</p>
+                          <p className="text-primary font-mono text-sm font-black">{formatBRL(drink.price)}</p>
+                        </div>
                       </div>
-                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center">
-                        <Plus />
+                      <button 
+                        onClick={() => handleAddDrink(drink)}
+                        className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-zinc-500 hover:bg-primary hover:text-white transition-all"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -190,35 +247,66 @@ export default function ClientHome() {
             </motion.div>
           )}
 
-          {activeTab === 'orders' && <div className="mt-6"><OrdersView /></div>}
-          {activeTab === 'profile' && <div className="mt-6"><ProfileView /></div>}
+          {activeTab === 'orders' && <OrdersView key="orders" />}
+          {activeTab === 'profile' && <ProfileView key="profile" />}
         </AnimatePresence>
       </main>
 
-      {/* CARRINHO FLUTUANTE */}
-      {items.length > 0 && activeTab === 'menu' && (
-        <div className="fixed bottom-24 md:bottom-8 left-0 right-0 px-container z-40 md:flex md:justify-center">
-          <button onClick={() => navigate('/checkout')} className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl">
-            <span>CARRINHO ({items.length})</span>
-            <span className="text-xl">{formatBRL(total)}</span>
+      {/* NAVIGATION BAR - MOBILE STYLE */}
+      <nav className="fixed bottom-0 left-0 w-full p-4 z-50">
+        <div className="max-w-xl mx-auto bg-black/80 backdrop-blur-2xl rounded-[32px] border border-white/10 p-2 flex items-center justify-between shadow-2xl">
+          <div className="flex items-center gap-1 p-1">
+            <button 
+              onClick={() => setActiveTab('menu')}
+              className={cn(
+                "w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all",
+                activeTab === 'menu' ? "bg-primary text-white" : "text-zinc-600 hover:text-zinc-400"
+              )}
+            >
+              <Menu className="w-5 h-5" />
+              <span className="text-[8px] font-black uppercase">Cardápio</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('orders')}
+              className={cn(
+                "w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all",
+                activeTab === 'orders' ? "bg-primary text-white" : "text-zinc-600 hover:text-zinc-400"
+              )}
+            >
+              <Receipt className="w-5 h-5" />
+              <span className="text-[8px] font-black uppercase">Pedidos</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className={cn(
+                "w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all",
+                activeTab === 'profile' ? "bg-primary text-white" : "text-zinc-600 hover:text-zinc-400"
+              )}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-[8px] font-black uppercase">Perfil</span>
+            </button>
+          </div>
+
+          <button 
+            onClick={() => navigate('/checkout')}
+            disabled={items.length === 0}
+            className={cn(
+              "flex-grow ml-4 mr-1 h-14 rounded-2xl flex items-center justify-between px-6 font-black text-[10px] uppercase tracking-widest transition-all",
+              items.length > 0 ? "bg-white text-black active:scale-95" : "bg-zinc-900 text-zinc-700 opacity-50 cursor-not-allowed"
+            )}
+          >
+            <span>Finalizar Compra</span>
+            <div className="flex items-center gap-3">
+               <span className="text-zinc-400 font-mono">|</span>
+               <span>{formatBRL(total)}</span>
+            </div>
           </button>
         </div>
-      )}
-
-      {/* BARRA MOBILE */}
-      <nav className="md:hidden bg-zinc-950 fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
-        <button onClick={() => setActiveTab('menu')} className={cn(activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>
-          <Utensils/><span className="text-[10px] block font-bold">Cardápio</span>
-        </button>
-        <button onClick={() => setActiveTab('orders')} className={cn(activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>
-          <Receipt/><span className="text-[10px] block font-bold">Pedidos</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>
-          <User/><span className="text-[10px] block font-bold">Perfil</span>
-        </button>
       </nav>
 
-      <AIChat menuContext={menu} />
+      {/* AI CHAT FLOATING */}
+      <AIChat storeSlug={storeSlug} menuData={menu} />
     </div>
   );
 }

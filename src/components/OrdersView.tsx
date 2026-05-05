@@ -7,30 +7,17 @@ import { Package, Gift, Clock, CheckCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { formatBRL } from '../lib/utils';
 import { format } from 'date-fns';
+import { useMyOrders } from '../lib/hooks';
 
 export default function OrdersView() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMyOrders();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
 
-  const fetchMyOrders = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-    if (user) {
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      setOrders(data || []);
-    }
-    setLoading(false);
-  };
+  const { data: orders = [], isLoading: loading } = useMyOrders(user?.id);
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Carregando...</div>;
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useMenu, useOrders, useAdminAccess, useSaveMenu, useUpdateOrderStatus } from '../lib/hooks';
 import { formatBRL, cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { 
@@ -17,49 +18,50 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings'>('orders');
   const [menu, setMenu] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [storeSlug, setStoreSlug] = useState<string>('');
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  const { data: adminData, isLoading: adminLoading, isSuccess: adminSuccess } = useAdminAccess(userEmail);
+  const { data: menuData, isLoading: menuLoading } = useMenu(storeSlug);
+  const { data: orders = [], isLoading: ordersLoading } = useOrders(storeSlug);
+  
+  const { mutateAsync: saveMenuMutate, isPending: saving } = useSaveMenu(storeSlug);
+  const { mutateAsync: updateStatusMutate } = useUpdateOrderStatus(storeSlug);
 
   useEffect(() => {
-    checkAccess();
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return navigate('/login');
+      setUserEmail(user.email!);
+      setLoadingUser(false);
+    });
+  }, [navigate]);
 
-  const checkAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return navigate('/login');
-
-    const adminData = await api.checkAdminAccess(user.email!);
-    if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
-      toast.error("Acesso negado.");
-      return navigate('/');
+  useEffect(() => {
+    if (adminSuccess && userEmail) {
+      if (!adminData && userEmail !== 'arleisilverio41@gmail.com') {
+        toast.error("Acesso negado.");
+        navigate('/');
+        return;
+      }
+      if (adminData?.status === 'blocked') {
+        setIsBlocked(true);
+        return;
+      }
+      setStoreSlug(adminData?.slug || 'marmitaria-talita');
     }
+  }, [adminSuccess, adminData, userEmail, navigate]);
 
-    if (adminData?.status === 'blocked') {
-      setIsBlocked(true);
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (menuData && !menu) {
+      setMenu(menuData);
     }
-
-    const slug = adminData?.slug || 'marmitaria-talita';
-    setStoreSlug(slug);
-    
-    const [menuData, ordersData] = await Promise.all([
-      api.getMenu(slug),
-      api.getOrders(slug)
-    ]);
-    
-    setMenu(menuData);
-    setOrders(ordersData);
-    setLoading(false);
-  };
+  }, [menuData]);
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      await api.updateOrderStatus(orderId, newStatus);
-      setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      await updateStatusMutate({ id: orderId, status: newStatus });
       toast.success(`Pedido ${newStatus}!`);
     } catch (err) {
       toast.error("Erro ao atualizar status.");
@@ -67,14 +69,11 @@ export default function AdminDashboard() {
   };
 
   const handleSaveMenu = async () => {
-    setSaving(true);
     try {
-      await api.updateMenu(storeSlug, menu);
+      await saveMenuMutate(menu);
       toast.success("Cardápio salvo com sucesso!");
     } catch (err) {
       toast.error("Erro ao salvar.");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -95,6 +94,8 @@ export default function AdminDashboard() {
     const name = prompt("Nome da carne?");
     if (name) setMenu({ ...menu, meats: [...(menu.meats || []), name] });
   };
+
+  const loading = loadingUser || adminLoading || (menuLoading && !menu) || ordersLoading;
 
   if (loading) return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center">
@@ -139,7 +140,7 @@ export default function AdminDashboard() {
             onClick={() => {
               const updated = { ...menu, isOpen: !menu.isOpen };
               setMenu(updated);
-              api.updateMenu(storeSlug, updated);
+              saveMenuMutate(updated);
               toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
             }}
             className={cn(

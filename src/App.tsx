@@ -1,47 +1,26 @@
-import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { supabase } from './integrations/supabase/client';
-import { CartProvider } from './contexts/CartContext';
 import ClientHome from './pages/ClientHome';
 import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
+import { CartProvider } from './contexts/CartContext';
 
-export default function App() {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) return null;
-
+function App() {
   return (
-    <CartProvider>
-      <Toaster position="top-center" reverseOrder={false} />
-      <BrowserRouter>
+    <BrowserRouter>
+      <CartProvider>
+        <Toaster position="top-center" reverseOrder={false} />
         <Routes>
-          <Route path="/" element={<ClientHome />} />
+          <Route path="/" element={<Navigate to="/s/marmitaria-talita" replace />} />
+          <Route path="/s/:slug" element={<ClientHome />} />
           <Route path="/checkout" element={<ClientCheckout />} />
-          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-          <Route 
-            path="/admin" 
-            element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
-          />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/login" element={<Login />} />
         </Routes>
-      </BrowserRouter>
-    </CartProvider>
+      </CartProvider>
+    </BrowserRouter>
   );
 }
+
+export default App;

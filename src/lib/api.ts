@@ -41,6 +41,16 @@ export const api = {
     return data || [];
   },
 
+  getMyOrders: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    return data || [];
+  },
+
   updateOrderStatus: async (id: string, status: string) => {
     const { data, error } = await supabase
       .from('orders')
@@ -88,14 +98,19 @@ export const api = {
   },
 
   processAI: async (message: string, context: any) => {
-    const res = await fetch(`https://kigindzghkbkwgzljrdz.supabase.co/functions/v1/ai-process`, {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    
+    const res = await fetch(`${supabaseUrl}/functions/v1/ai-process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpZ2luZHpnaGtia3dnemxqcmR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NjA4MzQsImV4cCI6MjA5MzMzNjgzNH0.aRPE1ez64r6UuivehA3rQJHPEdZrOmKdyLrTcAlL5J4`
+        'Authorization': `Bearer ${supabaseKey}`
       },
       body: JSON.stringify({ message, context })
     });
+    
+    if (!res.ok) throw new Error(`Erro na IA: ${res.status} ${res.statusText}`);
     return res.json();
   }
 };
