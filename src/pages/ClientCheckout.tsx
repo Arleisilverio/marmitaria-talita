@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
@@ -10,8 +12,7 @@ import {
   QrCode,
   CreditCard,
   Banknote,
-  ShoppingBag,
-  Send
+  ShoppingBag
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -39,13 +40,21 @@ export default function ClientCheckout() {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // 1. Criar o pedido no Supabase usando os nomes exatos das colunas do banco
+      // Pegar usuário atual de forma garantida
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+
+      if (!user) {
+        toast.error("Sua sessão expirou. Por favor, faça login novamente.");
+        navigate('/login');
+        return;
+      }
+
+      // 1. Criar o pedido no Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: user?.id || null,
+          user_id: user.id, // Forçando o ID do usuário logado
           customer_name: formData.nome,
           customer_phone: formData.telefone,
           delivery_address: formData.endereco,
@@ -57,7 +66,10 @@ export default function ClientCheckout() {
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Erro RLS/Banco:", orderError);
+        throw new Error(orderError.message);
+      }
 
       // 2. Salvar os itens do pedido
       const orderItems = items.map(item => ({
@@ -74,22 +86,22 @@ export default function ClientCheckout() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Notificar o servidor local (para Telegram/Impressão)
+      // 3. Notificar API Local (Telegram/Admin)
       await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...order,
-          itens: items // Passamos os itens para a notificação
+          itens: items
         })
       });
 
       clearCart();
-      toast.success("Pedido enviado com sucesso!");
+      toast.success("Pedido realizado com sucesso!");
       navigate('/');
     } catch (err: any) {
-      console.error("Erro ao salvar pedido:", err);
-      toast.error(`Erro ao salvar pedido: ${err.message || 'Verifique sua conexão'}`);
+      console.error("Erro completo:", err);
+      toast.error(`Erro: ${err.message || "Tente novamente"}`);
     } finally {
       setLoading(false);
     }
@@ -122,7 +134,7 @@ export default function ClientCheckout() {
       {loading ? (
         <div className="flex flex-col items-center justify-center h-[60vh] p-8 text-center space-y-4">
           <div className="w-20 h-20 rounded-full border-4 border-tertiary border-t-transparent animate-spin"></div>
-          <p className="font-heading text-xl text-primary font-bold">Processando seu pedido...</p>
+          <p className="font-heading text-xl text-primary font-bold animate-pulse">Confirmando seu pedido...</p>
         </div>
       ) : (
         <main className="max-w-2xl mx-auto px-container pt-6 space-y-6">
@@ -184,9 +196,6 @@ export default function ClientCheckout() {
                   onClick={() => setFormData({...formData, pagamento: method})}
                   className={`glass-card p-4 rounded-xl flex flex-col items-center gap-2 transition-all ${formData.pagamento === method ? 'border-primary bg-primary/10 ring-1 ring-primary' : ''}`}
                 >
-                  {method === 'pix' && <QrCode className="text-primary" />}
-                  {method === 'cartao' && <CreditCard className="text-primary" />}
-                  {method === 'dinheiro' && <Banknote className="text-primary" />}
                   <span className="font-mono text-xs text-white uppercase">{method}</span>
                 </button>
               ))}
