@@ -1,50 +1,44 @@
 import { supabase } from '../integrations/supabase/client';
 
 export const api = {
-  getMenu: async () => {
+  // Busca o cardápio de uma loja específica
+  getMenu: async (slug: string) => {
+    if (!slug) return null;
     const { data, error } = await supabase
       .from('store_settings')
       .select('menu_data')
-      .eq('id', 1)
+      .eq('store_slug', slug)
       .single();
       
     if (error || !data) {
-      console.warn("Cardápio ainda não configurado no banco de dados.");
       return { 
         isOpen: false, isDeliveryOpen: false, prepTime: 40, deliveryFee: 5,
-        title: "Atualizando Sistema...", description: "", image: "",
-        prices: { p: 0, m: 0, g: 0 }, meats: [], drinks: [] 
+        title: "Nova Loja", description: "Configure seu cardápio no painel admin.", image: "",
+        prices: { p: 0, m: 0, g: 0 }, meats: [], drinks: [], slides: []
       };
     }
     return data.menu_data;
   },
   
-  updateMenu: async (menuData: any) => {
+  updateMenu: async (slug: string, menuData: any) => {
     const { data, error } = await supabase
       .from('store_settings')
-      .update({ menu_data: menuData, updated_at: new Date().toISOString() })
-      .eq('id', 1)
+      .upsert({ store_slug: slug, menu_data: menuData, updated_at: new Date().toISOString() })
       .select()
       .single();
       
-    if (error) {
-      console.error("Erro do Supabase:", error);
-      throw new Error("Não autorizado a alterar o cardápio.");
-    }
+    if (error) throw new Error("Erro ao salvar configurações da loja.");
     return data.menu_data;
   },
 
-  getOrders: async () => {
+  getOrders: async (slug: string) => {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
+      .eq('store_slug', slug)
       .order('created_at', { ascending: false });
       
-    if (error) {
-      console.error("Erro ao buscar pedidos:", error);
-      return [];
-    }
-    return data;
+    return data || [];
   },
 
   updateOrderStatus: async (id: string, status: string) => {
@@ -54,11 +48,7 @@ export const api = {
       .eq('id', id)
       .select()
       .single();
-      
-    if (error) {
-      console.error("Erro ao atualizar status:", error);
-      throw error;
-    }
+    if (error) throw error;
     return data;
   },
 
@@ -80,11 +70,11 @@ export const api = {
     return data || [];
   },
 
-  addAppAdmin: async (email: string, storeName: string) => {
+  addAppAdmin: async (email: string, storeName: string, slug: string) => {
     const { error } = await supabase
       .from('app_admins')
-      .insert({ email, store_name: storeName });
-    if (error) throw new Error("Erro ao cadastrar lojista. E-mail pode já estar em uso.");
+      .insert({ email, store_name: storeName, slug: slug.toLowerCase().replace(/\s+/g, '-') });
+    if (error) throw new Error("Erro ao cadastrar lojista. E-mail ou Slug já podem estar em uso.");
   },
 
   toggleAppAdminStatus: async (id: string, currentStatus: string) => {
@@ -93,7 +83,7 @@ export const api = {
       .from('app_admins')
       .update({ status: newStatus })
       .eq('id', id);
-    if (error) throw new Error("Erro ao alterar status do lojista.");
+    if (error) throw new Error("Erro ao alterar status.");
     return newStatus;
   },
 

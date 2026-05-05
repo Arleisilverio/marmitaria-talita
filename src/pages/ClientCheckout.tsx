@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
@@ -10,6 +10,7 @@ import {
 import { toast } from 'react-hot-toast';
 
 export default function ClientCheckout() {
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { items, total, updateQuantity, clearCart } = useCart();
   
@@ -27,9 +28,10 @@ export default function ClientCheckout() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    api.getMenu().then(data => {
+    if (!slug) return;
+    api.getMenu(slug).then(data => {
       setMenuConfig(data);
-      if (!data.isDeliveryOpen) {
+      if (!data?.isDeliveryOpen) {
         setDeliveryType('retirada');
       }
       setLoading(false);
@@ -49,12 +51,10 @@ export default function ClientCheckout() {
         });
       }
     });
-  }, []);
+  }, [slug]);
 
   const deliveryFeeAmount = menuConfig?.deliveryFee !== undefined ? Number(menuConfig.deliveryFee) : 5.00;
   const deliveryFee = deliveryType === 'entrega' ? deliveryFeeAmount : 0;
-  
-  // Garantindo que a soma final seja matemática (Número + Número)
   const finalTotal = Number(total) + (items.length > 0 ? Number(deliveryFee) : 0);
 
   const handlePreSubmit = async () => {
@@ -119,7 +119,8 @@ export default function ClientCheckout() {
           change_for: formData.trocoPara || null,
           total_amount: finalTotal,
           status: 'pendente',
-          items_json: items
+          items_json: items,
+          store_slug: slug
         })
         .select()
         .single();
@@ -134,7 +135,7 @@ export default function ClientCheckout() {
 
       clearCart();
       toast.success("Pedido enviado com sucesso! 🍲");
-      navigate('/', { state: { tab: 'orders' } });
+      navigate(`/s/${slug}`, { state: { tab: 'orders' } });
     } catch (err: any) {
       console.error("Erro ao salvar pedido no Supabase:", err);
       toast.error(err.message || "Erro desconhecido ao salvar pedido.");
@@ -152,7 +153,7 @@ export default function ClientCheckout() {
         <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center text-on-surface-variant">
             <ShoppingBag className="w-16 h-16 mb-4 opacity-50" />
             <h2 className="text-xl font-heading mb-4 text-white">Seu carrinho está vazio</h2>
-            <button onClick={() => navigate('/')} className="px-6 py-2 bg-primary-container text-white rounded-full font-bold">Voltar ao Cardápio</button>
+            <button onClick={() => navigate(`/s/${slug}`)} className="px-6 py-2 bg-primary-container text-white rounded-full font-bold">Voltar ao Cardápio</button>
         </div>
     )
   }
