@@ -32,7 +32,14 @@ export default function Login() {
         if (error) throw new Error("Erro ao criar conta. Email já em uso ou inválido.");
         toast.success("Conta criada com sucesso! 🎉");
       }
-      navigate('/');
+      
+      // REDIRECIONAMENTO INTELIGENTE
+      if (email === 'arleisilverio41@gmail.com') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+      
     } catch (err: any) {
       toast.error(err.message);
     } finally {

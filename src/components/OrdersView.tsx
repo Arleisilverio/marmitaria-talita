@@ -3,20 +3,34 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, Clock, Gift } from 'lucide-react';
+import { Package, Gift, Clock, CheckCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
+import { formatBRL } from '../lib/utils';
+import { format } from 'date-fns';
 
 export default function OrdersView() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      setLoading(false);
-    });
+    fetchMyOrders();
   }, []);
+
+  const fetchMyOrders = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+    if (user) {
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      setOrders(data || []);
+    }
+    setLoading(false);
+  };
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Carregando...</div>;
 
@@ -45,27 +59,54 @@ export default function OrdersView() {
   }
 
   return (
-    <div className="px-container pt-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <motion.div 
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="w-20 h-20 bg-secondary/10 rounded-full flex items-center justify-center mb-6"
-      >
-        <Package className="text-secondary w-10 h-10" />
-      </motion.div>
-      <h2 className="font-heading text-2xl font-bold text-white mb-2">Meus Pedidos</h2>
-      <p className="text-on-surface-variant text-sm max-w-[250px] mx-auto leading-relaxed">
-        Você ainda não realizou pedidos hoje. Que tal escolher uma marmita quentinha?
-      </p>
-      
-      <div className="mt-12 w-full space-y-4">
-        <p className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">Status da Cozinha</p>
-        <div className="glass-card p-4 rounded-2xl flex items-center gap-4 opacity-50 grayscale">
-          <Clock className="text-zinc-500" />
-          <div className="text-left">
-            <p className="text-sm font-bold text-zinc-400">Nenhum pedido em preparo</p>
-          </div>
+    <div className="px-container pt-6 space-y-6 pb-24">
+      <div className="flex items-center gap-4 border-b border-white/5 pb-6">
+        <div className="w-16 h-16 bg-secondary/10 rounded-2xl flex items-center justify-center">
+          <Package className="text-secondary w-8 h-8" />
         </div>
+        <div>
+          <h2 className="font-heading text-2xl font-bold text-white">Meus Pedidos</h2>
+          <p className="text-sm text-zinc-500">Acompanhe seu histórico</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {orders.length === 0 ? (
+          <div className="text-center py-12 glass-card rounded-2xl border border-white/5">
+            <p className="text-zinc-500 text-sm">Você ainda não realizou pedidos.</p>
+          </div>
+        ) : (
+          orders.map((order) => (
+            <div key={order.id} className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden group">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="font-sans text-xs text-zinc-500 font-mono mb-1">
+                    {format(new Date(order.created_at), "dd/MM/yyyy • HH:mm")}
+                  </p>
+                  <p className="font-bold text-white text-lg">{formatBRL(order.total_amount)}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold flex items-center gap-1 ${
+                  order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/30' : 
+                  order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 
+                  order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 
+                  'bg-red-500/10 text-red-500 border border-red-500/30'
+                }`}>
+                  {order.status === 'entregue' ? <CheckCircle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
+                  {order.status}
+                </div>
+              </div>
+              
+              <div className="space-y-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                {order.items_json?.map((i:any, idx:number) => (
+                  <p key={idx} className="text-sm text-zinc-300">
+                    <span className="font-bold text-zinc-500 mr-2">{i.quantity}x</span>
+                    {i.name} {i.size && <span className="text-orange-400 text-xs">({i.size})</span>}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ dotenv.config();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8791437029:AAFIHtfz1gMDStGYJVlBMRmqGWWCYwgtwaE";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946";
 
-// In-memory Database
+// Menu continua aqui por enquanto (como cache super rápido). Pedidos não!
 let db = {
   menu: {
     title: "Feijoada Completa da Chef",
@@ -20,48 +20,32 @@ let db = {
       { id: "m1", name: "Frango Grelhado", available: true },
       { id: "m2", name: "Bife Acebolado", available: true },
       { id: "m3", name: "Costelinha Suína", available: false },
-      { id: "m4", name: "Ovo Frito", available: true },
-      { id: "m5", name: "Filé de Peixe", available: false },
-      { id: "m6", name: "Lombo Assado", available: true },
     ],
     drinks: [
       { id: "d1", name: "Coca-Cola Lata 350ml", price: 6.00 },
-      { id: "d2", name: "Suco de Laranja 500ml", price: 9.00 },
-      { id: "d3", name: "Guaraná Antarctica 600ml", price: 8.00 },
     ]
-  },
-  orders: [] as any[]
+  }
 };
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Aumentado o limite para 50mb para suportar fotos tiradas pela câmera do celular
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // --- API Routes ---
-  
   app.get("/api/menu", (req, res) => res.json(db.menu));
   app.put("/api/menu", (req, res) => {
     db.menu = { ...db.menu, ...req.body };
     res.json(db.menu);
   });
 
-  app.get("/api/orders", (req, res) => res.json(db.orders.sort((a, b) => b.createdAt - a.createdAt)));
-
+  // Gatilho exclusivo para o Bot do Telegram! (O Supabase já salvou o pedido)
   app.post("/api/orders", async (req, res) => {
-    const orderData = req.body;
-    const newOrder = {
-      ...orderData,
-      createdAt: orderData.created_at ? new Date(orderData.created_at).getTime() : Date.now()
-    };
-    db.orders.push(newOrder);
+    const newOrder = req.body;
 
-    // Enviar para o Telegram
     try {
-      const itemsList = newOrder.itens?.map((item: any) =>
+      const itemsList = newOrder.items_json?.map((item: any) =>
         `• ${item.name}${item.size ? ` (${item.size})` : ''} x${item.quantity}`
       ).join('\n') || 'Nenhum item';
 
@@ -95,21 +79,11 @@ _Pedido recebido via App Marmitaria_
       console.error("Erro ao enviar Telegram:", err);
     }
 
-    res.status(201).json(newOrder);
+    res.status(200).json({ success: true });
   });
 
-  app.put("/api/orders/:id/status", (req, res) => {
-    const order = db.orders.find(o => o.id === req.params.id);
-    if (order) order.status = req.body.status;
-    res.json(order || { error: "Order not found" });
-  });
-
-  // --- Vite ---
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');

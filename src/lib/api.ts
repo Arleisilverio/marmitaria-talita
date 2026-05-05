@@ -1,3 +1,5 @@
+import { supabase } from '../integrations/supabase/client';
+
 const API_BASE = '/api';
 
 export const api = {
@@ -14,24 +16,32 @@ export const api = {
     return res.json();
   },
   getOrders: async () => {
-    const res = await fetch(`${API_BASE}/orders`);
-    return res.json();
-  },
-  createOrder: async (data: any) => {
-    const res = await fetch(`${API_BASE}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return res.json();
+    // Agora busca PERMANENTEMENTE do banco de dados Supabase
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error("Erro ao buscar pedidos:", error);
+      return [];
+    }
+    return data;
   },
   updateOrderStatus: async (id: string, status: string) => {
-    const res = await fetch(`${API_BASE}/orders/${id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    return res.json();
+    // Atualiza permanentemente no banco de dados
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Erro ao atualizar status:", error);
+      throw error;
+    }
+    return data;
   },
   processAI: async (message: string, context: any) => {
     const res = await fetch(`https://kigindzghkbkwgzljrdz.supabase.co/functions/v1/ai-process`, {

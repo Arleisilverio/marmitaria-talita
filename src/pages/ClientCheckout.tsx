@@ -16,17 +16,14 @@ export default function ClientCheckout() {
     nome: '', telefone: '', endereco: '', pagamento: 'pix', trocoPara: ''
   });
   
-  // Controle do Modal de Autenticação Obrigatória
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [authForm, setAuthForm] = useState({ email: '', password: '' });
-  
   const [loading, setLoading] = useState(false);
 
   const deliveryFee = 5.00;
   const finalTotal = total + (items.length > 0 ? deliveryFee : 0);
 
-  // Validação inicial
   const handlePreSubmit = async () => {
     if (!formData.nome || !formData.telefone || !formData.endereco) {
       toast.error("Preencha seu nome, telefone e endereço!");
@@ -35,15 +32,12 @@ export default function ClientCheckout() {
 
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
-      // Já está logado, segue direto pro pedido
       processOrder(data.session.user.id);
     } else {
-      // Visitante, obriga a logar ou cadastrar
       setShowAuthModal(true);
     }
   };
 
-  // Cadastrar/Logar e salvar
   const handleAuthAndOrder = async () => {
     if (!authForm.email || !authForm.password || authForm.password.length < 6) {
       toast.error("Insira um email válido e senha (mínimo 6 caracteres).");
@@ -52,9 +46,7 @@ export default function ClientCheckout() {
     setLoading(true);
     try {
       let authData;
-      
       if (isLoginMode) {
-        // Modo Login
         const { data, error } = await supabase.auth.signInWithPassword({
           email: authForm.email,
           password: authForm.password,
@@ -63,7 +55,6 @@ export default function ClientCheckout() {
         authData = data;
         toast.success("Login realizado com sucesso!");
       } else {
-        // Modo Cadastro
         const { data, error } = await supabase.auth.signUp({
           email: authForm.email,
           password: authForm.password,
@@ -74,7 +65,6 @@ export default function ClientCheckout() {
       }
       
       setShowAuthModal(false);
-      // Passa o ID do usuário garantido para finalizar o pedido
       if (authData?.user?.id) {
         await processOrder(authData.user.id);
       }
@@ -84,11 +74,11 @@ export default function ClientCheckout() {
     }
   };
 
-  // O processo real de salvar no banco
   const processOrder = async (userId: string) => {
     setLoading(true);
     setShowAuthModal(false);
     try {
+      // Salva o pedido E o JSON do carrinho permanentemente no banco
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -99,28 +89,19 @@ export default function ClientCheckout() {
           payment_method: formData.pagamento,
           change_for: formData.trocoPara || null,
           total_amount: finalTotal,
-          status: 'pendente'
+          status: 'pendente',
+          items_json: items // <--- NOVA ADIÇÃO PARA RELATÓRIOS
         })
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_id: null, 
-        quantity: item.quantity,
-        unit_price: item.price,
-        notes: item.observation || ''
-      }));
-
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-      if (itemsError) throw itemsError;
-
+      // Mantemos o envio pro backend apenas para disparar o robô do Telegram
       await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...order, itens: items })
+        body: JSON.stringify({ ...order, items_json: items })
       });
 
       clearCart();
@@ -146,23 +127,20 @@ export default function ClientCheckout() {
 
   return (
     <div className="min-h-screen pb-32 relative">
-      {/* MODAL DE AUTENTICAÇÃO OBRIGATÓRIA */}
+      {/* MODAL DE AUTENTICAÇÃO */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-surface-container border border-orange-500/30 rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
             <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
               <X className="w-6 h-6" />
             </button>
-            
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
               <ShieldCheck className="text-white w-8 h-8" />
             </div>
-            
             <h3 className="font-heading text-2xl font-bold text-white mb-2">Identificação Necessária</h3>
             <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
               Para sua segurança e para evitar fraudes, precisamos que você se identifique antes de enviar o pedido.
             </p>
-
             <div className="space-y-3 mb-6">
               <input 
                 type="email" 
@@ -179,7 +157,6 @@ export default function ClientCheckout() {
                 className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 text-white focus:border-orange-500 outline-none transition-colors"
               />
             </div>
-
             <div className="space-y-3">
               <button 
                 onClick={handleAuthAndOrder}
@@ -188,7 +165,6 @@ export default function ClientCheckout() {
               >
                 {loading ? 'Aguarde...' : (isLoginMode ? 'ENTRAR E FINALIZAR' : 'CADASTRAR E FINALIZAR')}
               </button>
-              
               <button 
                 onClick={() => setIsLoginMode(!isLoginMode)}
                 disabled={loading}
