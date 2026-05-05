@@ -12,12 +12,17 @@ import { useMyOrders } from '../lib/hooks';
 export default function OrdersView() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setLoadingAuth(false);
+    });
   }, []);
 
-  const { data: orders = [], isLoading: loading } = useMyOrders(user?.id);
+  const { data: orders = [], isLoading: loadingOrders } = useMyOrders(user?.id);
+  const loading = loadingAuth || (user && loadingOrders);
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Carregando...</div>;
 

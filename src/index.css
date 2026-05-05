@@ -1,60 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #D14D1D; /* Terracota */
-  --color-secondary: #556B2F; /* Olive */
-  --color-background: #09090B;
-  --font-heading: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --color-surface: #121410;
+  --color-surface-dim: #0d0f0c;
+  --color-surface-bright: #2d3329;
+  --color-surface-container-lowest: #080a07;
+  --color-surface-container-low: #151812;
+  --color-surface-container: #1b1f18;
+  --color-surface-container-high: #242a20;
+  --color-surface-container-highest: #2d3529;
+  
+  --color-on-surface: #f2f4f0;
+  --color-on-surface-variant: #b9c2b1;
+  
+  --color-primary: #e2725b;
+  --color-on-primary: #3d150d;
+  --color-primary-container: #bd5a44;
+  
+  --color-secondary: #8a9a5b;
+  --color-on-secondary: #1d2310;
+  --color-secondary-container: #6d7b43;
+  
+  --color-tertiary: #d4a373;
+  --color-on-tertiary: #3a2610;
+  --color-tertiary-container: #bc8a5f;
+  
+  --color-background: #0d0f0c;
+  --color-on-background: #f2f4f0;
+
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
+
+  --spacing-container: 16px;
+  --spacing-gutter: 12px;
 }
 
 @layer base {
   body {
-    @apply bg-background text-zinc-300 font-body antialiased;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-heading text-white tracking-tight;
+    @apply bg-background text-on-background font-sans antialiased selection:bg-primary/30;
   }
 }
 
-@layer components {
-  .glass-card {
-    @apply bg-zinc-900/50 backdrop-blur-xl border border-white/5;
-  }
-  
-  .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-white font-black px-6 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-primary/20;
-  }
-
-  .btn-secondary {
-    @apply bg-zinc-800 hover:bg-zinc-700 text-white font-black px-6 py-3 rounded-2xl transition-all active:scale-95;
-  }
-
-  /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full;
-  }
-}
-
-/* Animations */
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 4s ease-in-out infinite;
-}
-
-/* Glassmorphism effects */
-.glass-panel {
-  background: rgba(15, 15, 15, 0.7);
-  backdrop-filter: blur(20px);
+.glass-card {
+  background: rgba(27, 31, 24, 0.7);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-glow-primary {
+  box-shadow: 0 4px 20px rgba(226, 114, 91, 0.2);
+}
+
+.neon-glow-btn {
+  box-shadow: 0 10px 30px rgba(193, 85, 60, 0.4);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+    position: static !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

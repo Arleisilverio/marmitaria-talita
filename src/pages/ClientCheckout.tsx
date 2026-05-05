@@ -1,310 +1,130 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { api } from '../lib/api';
-import { useMenu } from '../lib/hooks';
-import { formatBRL } from '../lib/utils';
-import { 
-  ArrowLeft, ShoppingBag, MapPin, Phone, 
-  CreditCard, Banknote, User, CheckCircle2,
-  Lock, ShieldCheck, ChevronRight, AlertCircle,
-  Truck
-} from 'lucide-react';
+import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
+import { api } from '../lib/api';
+import { ArrowLeft, Minus, Plus, Bike, Store } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'motion/react';
 
 export default function ClientCheckout() {
   const navigate = useNavigate();
-  const { items, total, clearCart } = useCart();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [storeSlug] = useState<string>('marmitaria-talita');
-  const { data: menu } = useMenu(storeSlug);
-  const deliveryFee = Number(menu?.deliveryFee) || 0;
-
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    address: '',
-    complement: '',
-    payment: 'pix'
-  });
+  const { items, total, updateQuantity, clearCart } = useCart();
+  const [deliveryType, setDeliveryType] = useState<'entrega' | 'retirada'>('entrega');
+  const [formData, setFormData] = useState({ nome: '', telefone: '', endereco: '', pagamento: 'pix', trocoPara: '' });
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const SLUG = 'marmitaria-talita';
 
   useEffect(() => {
-    if (items.length === 0 && !success) {
-      navigate('/');
-    }
-    loadProfile();
-  }, [items, success]);
-
-  const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const profile = await api.getProfile(user.id);
-      if (profile) {
-        setFormData(prev => ({
-          ...prev,
-          name: profile.full_name || '',
-          phone: profile.phone || '',
-          address: profile.address || '',
-        }));
+    api.getMenu(SLUG).then(() => setLoading(false));
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
+          if (data) setFormData(prev => ({ ...prev, nome: data.full_name || '', telefone: data.phone || '', endereco: data.address || '' }));
+        });
       }
-    }
-  };
+    });
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleSubmit = async () => {
+    if (!formData.nome || !formData.telefone || (deliveryType === 'entrega' && !formData.endereco)) {
+      return toast.error("Preencha todos os campos!");
+    }
+
+    setProcessing(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const orderData = {
-        store_slug: storeSlug,
-        customer_id: user?.id,
-        customer_name: formData.name,
-        customer_phone: formData.phone,
-        address: formData.address + (formData.complement ? `, ${formData.complement}` : ''),
+      const { data: order, error } = await supabase.from('orders').insert({
+        user_id: user?.id,
+        customer_name: formData.nome,
+        customer_phone: formData.telefone,
+        delivery_address: deliveryType === 'retirada' ? 'RETIRADA' : formData.endereco,
+        payment_method: formData.pagamento,
+        total_amount: total + (deliveryType === 'entrega' ? 5 : 0),
+        status: 'pendente',
         items_json: items,
-        total_amount: total + deliveryFee,
-        payment_method: formData.payment,
-        status: 'pendente'
-      };
+        store_slug: SLUG
+      }).select().single();
 
-      await api.createOrder(orderData);
+      if (error) throw error;
+
+      await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) });
       
-      setSuccess(true);
       clearCart();
-      toast.success("Pedido enviado com sucesso!");
+      toast.success("Pedido enviado! 🍲");
+      navigate('/', { state: { tab: 'orders' } });
     } catch (err) {
-      toast.error("Erro ao finalizar pedido.");
+      toast.error("Erro ao enviar pedido.");
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-zinc-900 border border-white/5 p-12 rounded-[40px] text-center max-w-md w-full shadow-2xl"
-        >
-          <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-green-500/20">
-            <CheckCircle2 className="w-12 h-12 text-green-500" />
-          </div>
-          <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tight">Pedido Realizado!</h2>
-          <p className="text-zinc-500 text-sm leading-relaxed mb-10 px-4">
-            Sua marmita está sendo preparada com muito carinho. Acompanhe o status no seu perfil.
-          </p>
-          <button 
-            onClick={() => navigate('/')}
-            className="w-full bg-primary py-5 rounded-2xl font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all"
-          >
-            Voltar para a Início
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-white">Carregando...</div>;
 
   return (
-    <div className="min-h-screen bg-background pb-32">
-      {/* HEADER MINIMALISTA */}
-      <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 px-6 py-6 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-white font-black text-lg uppercase tracking-tight">Finalizar Pedido</h1>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-zinc-900 rounded-full border border-white/5">
-             <Lock className="w-3 h-3 text-primary" />
-             <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Checkout Seguro</span>
-          </div>
-        </div>
+    <div className="min-h-screen pb-32">
+      <header className="p-4 border-b border-white/5 flex items-center gap-4 bg-background sticky top-0 z-50">
+        <button onClick={() => navigate(-1)}><ArrowLeft/></button>
+        <h1 className="font-bold text-white uppercase text-sm">Finalizar Pedido</h1>
       </header>
 
-      <main className="max-w-4xl mx-auto p-6 mt-4">
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* COLUNA ESQUERDA: DADOS */}
-          <div className="lg:col-span-7 space-y-8">
-            
-            {/* SEÇÃO: IDENTIFICAÇÃO */}
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                  <User className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-white font-black text-sm uppercase tracking-widest">Identificação</h3>
+      <main className="max-w-2xl mx-auto p-4 space-y-8">
+        <section className="space-y-4">
+          <h2 className="text-primary font-bold text-xl">Seu Pedido</h2>
+          {items.map((item, idx) => (
+            <div key={idx} className="glass-card p-4 rounded-xl flex justify-between items-center border border-white/5">
+              <div>
+                <p className="text-white font-bold">{item.name} {item.size && `(${item.size})`}</p>
+                <p className="text-secondary font-bold">{formatBRL(item.price)}</p>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Nome Completo</label>
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="Como devemos te chamar?"
-                    className="w-full bg-zinc-900 border border-white/5 p-4 rounded-2xl text-white text-sm outline-none focus:border-primary transition-all"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Telefone / WhatsApp</label>
-                  <input 
-                    required
-                    type="tel" 
-                    placeholder="(00) 00000-0000"
-                    className="w-full bg-zinc-900 border border-white/5 p-4 rounded-2xl text-white text-sm outline-none focus:border-primary transition-all"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* SEÇÃO: ENTREGA */}
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                  <MapPin className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-white font-black text-sm uppercase tracking-widest">Endereço de Entrega</h3>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Endereço Principal</label>
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="Rua, Número e Bairro"
-                    className="w-full bg-zinc-900 border border-white/5 p-4 rounded-2xl text-white text-sm outline-none focus:border-primary transition-all"
-                    value={formData.address}
-                    onChange={e => setFormData({...formData, address: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Complemento / Referência</label>
-                  <input 
-                    type="text" 
-                    placeholder="Apto, Bloco, Casa nos fundos..."
-                    className="w-full bg-zinc-900 border border-white/5 p-4 rounded-2xl text-white text-sm outline-none focus:border-primary transition-all"
-                    value={formData.complement}
-                    onChange={e => setFormData({...formData, complement: e.target.value})}
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* SEÇÃO: PAGAMENTO */}
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                  <CreditCard className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-white font-black text-sm uppercase tracking-widest">Método de Pagamento</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[
-                  { id: 'pix', label: 'PIX', icon: <ShieldCheck className="w-4 h-4"/> },
-                  { id: 'card', label: 'Cartão', icon: <CreditCard className="w-4 h-4"/> },
-                  { id: 'cash', label: 'Dinheiro', icon: <Banknote className="w-4 h-4"/> }
-                ].map(method => (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setFormData({...formData, payment: method.id})}
-                    className={cn(
-                      "flex items-center justify-between p-5 rounded-2xl border transition-all",
-                      formData.payment === method.id 
-                        ? "bg-primary/10 border-primary text-white" 
-                        : "bg-zinc-900 border-white/5 text-zinc-500"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      {method.icon}
-                      <span className="font-bold text-xs uppercase tracking-widest">{method.label}</span>
-                    </div>
-                    {formData.payment === method.id && <div className="w-2 h-2 rounded-full bg-primary" />}
-                  </button>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          {/* COLUNA DIREITA: RESUMO */}
-          <div className="lg:col-span-5">
-            <div className="bg-zinc-900 rounded-[32px] p-8 border border-white/5 sticky top-32 shadow-2xl overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
-              
-              <h3 className="text-white font-black text-sm uppercase tracking-widest mb-8 flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4 text-primary" /> Resumo do Pedido
-              </h3>
-
-              <div className="space-y-6 mb-8 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between gap-4">
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center border border-white/5 text-[10px] font-black text-primary">
-                        {item.quantity}x
-                      </div>
-                      <div>
-                        <p className="text-white font-bold text-sm leading-tight">{item.name}</p>
-                        <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mt-0.5">{item.size}</p>
-                      </div>
-                    </div>
-                    <span className="text-white font-mono text-sm">{formatBRL(item.price * item.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4 pt-8 border-t border-white/5">
-                <div className="flex justify-between text-zinc-500 text-xs font-bold uppercase tracking-widest">
-                  <span>Subtotal</span>
-                  <span className="text-white font-mono">{formatBRL(total)}</span>
-                </div>
-                <div className="flex justify-between text-zinc-500 text-xs font-bold uppercase tracking-widest">
-                  <span className="flex items-center gap-2"><Truck className="w-3 h-3"/> Taxa de Entrega</span>
-                  <span className="text-white font-mono">{formatBRL(deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                  <span className="text-white font-black text-sm uppercase tracking-widest">Total</span>
-                  <span className="text-primary font-black text-2xl font-mono">{formatBRL(total + deliveryFee)}</span>
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary mt-10 py-5 rounded-2xl font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    Confirmar e Pedir <ChevronRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-              <div className="mt-6 flex items-center justify-center gap-2 text-[9px] text-zinc-600 font-black uppercase tracking-widest">
-                <AlertCircle className="w-3 h-3" />
-                Pague apenas no recebimento
+              <div className="flex items-center gap-3">
+                <button onClick={() => updateQuantity(item.id, item.size, -1)} className="text-primary"><Minus size={16}/></button>
+                <span className="text-white font-bold">{item.quantity}</span>
+                <button onClick={() => updateQuantity(item.id, item.size, 1)} className="text-primary"><Plus size={16}/></button>
               </div>
             </div>
+          ))}
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-primary font-bold text-xl">Entrega ou Retirada</h2>
+          <div className="flex gap-2">
+            <button onClick={() => setDeliveryType('entrega')} className={cn("flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold", deliveryType === 'entrega' ? "border-primary bg-primary/10 text-primary" : "border-white/5 text-zinc-500")}>
+              <Bike/> <span>Entrega</span>
+            </button>
+            <button onClick={() => setDeliveryType('retirada')} className={cn("flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold", deliveryType === 'retirada' ? "border-primary bg-primary/10 text-primary" : "border-white/5 text-zinc-500")}>
+              <Store/> <span>Retirada</span>
+            </button>
           </div>
-        </form>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-primary font-bold text-xl">Seus Dados</h2>
+          <div className="space-y-3">
+            <input type="text" placeholder="Nome" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-zinc-900 border border-white/5 p-4 rounded-xl text-white outline-none"/>
+            <input type="text" placeholder="WhatsApp" value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} className="w-full bg-zinc-900 border border-white/5 p-4 rounded-xl text-white outline-none"/>
+            {deliveryType === 'entrega' && (
+              <textarea placeholder="Endereço" value={formData.endereco} onChange={e => setFormData({...formData, endereco: e.target.value})} className="w-full bg-zinc-900 border border-white/5 p-4 rounded-xl text-white outline-none"/>
+            )}
+          </div>
+        </section>
+
+        <div className="glass-card p-6 rounded-xl space-y-4 border border-white/5">
+          <div className="flex justify-between text-zinc-400"><span>Subtotal</span><span>{formatBRL(total)}</span></div>
+          <div className="flex justify-between text-zinc-400"><span>Taxa</span><span>{deliveryType === 'entrega' ? formatBRL(5) : 'Grátis'}</span></div>
+          <div className="h-px bg-white/5"></div>
+          <div className="flex justify-between text-white font-bold text-xl"><span>Total</span><span>{formatBRL(total + (deliveryType === 'entrega' ? 5 : 0))}</span></div>
+        </div>
       </main>
+
+      <div className="fixed bottom-0 w-full p-4 bg-background border-t border-white/5">
+        <button onClick={handleSubmit} disabled={processing} className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg shadow-xl">
+          {processing ? 'Enviando...' : 'FINALIZAR PEDIDO'}
+        </button>
+      </div>
     </div>
   );
 }
