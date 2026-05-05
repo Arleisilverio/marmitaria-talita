@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL } from '../lib/utils';
+import { supabase } from '../integrations/supabase/client';
 import { 
   Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
-  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2
+  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2, LogOut
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -94,6 +95,13 @@ export default function AdminDashboard() {
     setTimeout(() => { window.print(); setPrintingOrder(null); }, 100);
   };
 
+  // Função para fazer logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+    toast.success('Você saiu da conta.');
+  };
+
   if (loading && !menu) return <div className="p-8 text-white flex justify-center mt-20">Carregando painel da cozinha...</div>;
 
   const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
@@ -177,6 +185,17 @@ export default function AdminDashboard() {
                   className={`flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase transition-all ${menu.isDeliveryOpen ? 'text-blue-400' : 'text-zinc-500'}`}
                 >
                   <Bike className="w-3.5 h-3.5 md:w-4 md:h-4" /> {menu.isDeliveryOpen ? 'LIGADO' : 'DESLIGADO'}
+                </button>
+              </div>
+
+              {/* Botão de Logout Adicionado Aqui */}
+              <div className="flex flex-col items-center bg-zinc-900/50 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl px-4 py-1.5 md:py-2 transition-colors ml-1">
+                <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Admin</span>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase transition-all text-red-500 hover:text-red-400"
+                >
+                  <LogOut className="w-3.5 h-3.5 md:w-4 md:h-4" /> SAIR
                 </button>
               </div>
             </div>
