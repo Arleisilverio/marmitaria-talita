@@ -34,9 +34,16 @@ export default function App() {
       <Toaster position="top-center" reverseOrder={false} />
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+          {/* REGRA CORRIGIDA: Se logar como Admin, vai para /admin. Se for Cliente, vai para / */}
+          <Route 
+            path="/login" 
+            element={
+              !session 
+                ? <Login /> 
+                : (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/" />)
+            } 
+          />
           
-          {/* Home e Checkout agora são públicos */}
           <Route path="/" element={<ClientHome />} />
           <Route path="/checkout" element={<ClientCheckout />} />
           
