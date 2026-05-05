@@ -35,7 +35,6 @@ export default function ClientCheckout() {
       setLoading(false);
     });
 
-    // Auto-preencher dados se o usuário já tiver perfil salvo
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
@@ -54,7 +53,9 @@ export default function ClientCheckout() {
 
   const deliveryFeeAmount = menuConfig?.deliveryFee !== undefined ? Number(menuConfig.deliveryFee) : 5.00;
   const deliveryFee = deliveryType === 'entrega' ? deliveryFeeAmount : 0;
-  const finalTotal = total + (items.length > 0 ? deliveryFee : 0);
+  
+  // Garantindo que a soma final seja matemática (Número + Número)
+  const finalTotal = Number(total) + (items.length > 0 ? Number(deliveryFee) : 0);
 
   const handlePreSubmit = async () => {
     if (!formData.nome || !formData.telefone || (deliveryType === 'entrega' && !formData.endereco)) {
@@ -123,9 +124,8 @@ export default function ClientCheckout() {
         .select()
         .single();
 
-      if (orderError) throw orderError; // Força cair no bloco catch abaixo para lermos o erro exato
+      if (orderError) throw orderError;
 
-      // Dispara robô do Telegram
       await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,7 +137,6 @@ export default function ClientCheckout() {
       navigate('/', { state: { tab: 'orders' } });
     } catch (err: any) {
       console.error("Erro ao salvar pedido no Supabase:", err);
-      // Aqui agora exibimos o erro EXATO na tela para você saber
       toast.error(err.message || "Erro desconhecido ao salvar pedido.");
     } finally {
       setProcessing(false);
@@ -201,13 +200,19 @@ export default function ClientCheckout() {
           <section className="space-y-4">
             <h2 className="font-heading text-2xl text-primary font-bold">Seu Carrinho</h2>
             <div className="space-y-3">
-              {items.map((item, idx) => (
+              {items.map((item, idx) => {
+                const itemPrice = Number(item.price) || 0;
+                const subtotalItem = itemPrice * item.quantity;
+                
+                return (
                 <div key={`${item.id}-${item.size}-${idx}`} className="glass-card rounded-xl p-4 flex items-center gap-4 border border-white/5">
                   <div className="flex-grow">
                     <h3 className="font-heading font-bold text-white">{item.name}</h3>
-                    {item.size && <p className="text-on-surface-variant text-sm">Tamanho: {item.size}</p>}
+                    {item.size && <p className="text-on-surface-variant text-sm">Tamanho: {item.size} <span className="opacity-50">({formatBRL(itemPrice)} un.)</span></p>}
+                    {!item.size && <p className="text-on-surface-variant text-sm opacity-50">({formatBRL(itemPrice)} un.)</p>}
+                    
                     <div className="flex justify-between items-end mt-2">
-                      <span className="font-heading text-xl text-tertiary font-bold">{formatBRL(item.price)}</span>
+                      <span className="font-heading text-xl text-tertiary font-bold">{formatBRL(subtotalItem)}</span>
                       <div className="flex items-center gap-2 bg-surface-container-high rounded-full px-2 py-1">
                         <button onClick={() => updateQuantity(item.id, item.size, -1)} className="text-primary"><Minus className="w-5 h-5"/></button>
                         <span className="font-bold w-4 text-center text-white">{item.quantity}</span>
@@ -216,7 +221,7 @@ export default function ClientCheckout() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </section>
 

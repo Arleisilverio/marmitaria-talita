@@ -5,10 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Format currency
-export function formatBRL(value: number) {
+// Format currency - Forçando a conversão para Número para evitar erros de soma
+export function formatBRL(value: number | string) {
+  const numericValue = Number(value) || 0;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(value);
+  }).format(numericValue);
 }

@@ -4,7 +4,7 @@ export type CartItem = {
   id: string;
   name: string;
   size?: 'P' | 'M' | 'G';
-  price: number;
+  price: number | string;
   quantity: number;
   type: 'dish' | 'drink';
   observation?: string;
@@ -56,7 +56,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => setItems([]);
 
-  const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  // Forçando que o preço seja tratado como NÚMERO e não texto
+  const total = items.reduce((acc, item) => {
+    const itemPrice = Number(item.price) || 0;
+    return acc + (itemPrice * item.quantity);
+  }, 0);
 
   return (
     <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total }}>
