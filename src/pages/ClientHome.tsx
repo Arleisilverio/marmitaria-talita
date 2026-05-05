@@ -12,7 +12,8 @@ import {
   ShoppingCart,
   Plus,
   Leaf,
-  Send
+  Send,
+  ArrowLeft
 } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
@@ -107,9 +108,15 @@ export default function ClientHome() {
       {/* TopAppBar */}
       <header className="bg-surface/80 backdrop-blur-xl docked full-width top-0 sticky z-50 border-b border-white/5 flex justify-between items-center px-4 py-3 w-full">
         <div className="flex items-center gap-2">
-          <Leaf className="text-secondary w-6 h-6" />
+          {activeTab !== 'menu' ? (
+            <button onClick={() => setActiveTab('menu')} className="text-secondary hover:text-white transition-colors p-1 -ml-1">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+          ) : (
+            <Leaf className="text-secondary w-6 h-6" />
+          )}
           <h1 className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-tertiary to-secondary">
-            MARMITARIA TALITA
+            {activeTab === 'menu' ? 'MARMITARIA TALITA' : activeTab === 'orders' ? 'MEUS PEDIDOS' : 'MEU PERFIL'}
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -122,7 +129,7 @@ export default function ClientHome() {
           >
             <Send className="w-5 h-5 rotate-[-45deg] translate-y-[-1px]" />
           </a>
-          <div className="status-badge-glow bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-2">
+          <div className="status-badge-glow bg-secondary/10 px-3 py-1 rounded-full flex items-center gap-2 hidden sm:flex">
             <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
             <span className="font-mono text-[10px] text-secondary font-bold tracking-widest">ABERTO</span>
           </div>

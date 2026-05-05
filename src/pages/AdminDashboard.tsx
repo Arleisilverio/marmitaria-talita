@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL } from '../lib/utils';
 import { 
   Utensils, 
   Receipt, 
-  LogOut,
   CheckCircle,
   XCircle,
   Printer,
@@ -13,12 +13,14 @@ import {
   Trash2,
   Plus,
   Save,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ArrowLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'menu' | 'orders'>('orders');
   const [menu, setMenu] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
@@ -190,12 +192,15 @@ Total: ${formatBRL(order.total_amount)}`;
       <div className="no-print">
         <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full">
           <div className="flex items-center gap-3">
-            <Utensils className="text-orange-600 w-6 h-6" />
-            <h1 className="text-xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
+            <button onClick={() => navigate('/')} className="text-orange-600 hover:text-white transition-colors active:scale-95 p-1 -ml-1">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <Utensils className="text-orange-600 w-6 h-6 hidden sm:block" />
+            <h1 className="text-lg md:text-xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest truncate">
               MARMITARIA DA TALITA
             </h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <span className="font-heading text-sm font-bold uppercase tracking-widest text-orange-600 hidden sm:block">ADMIN</span>
             <div className="w-2 h-2 rounded-full bg-green-500 pulse-led"></div>
           </div>
