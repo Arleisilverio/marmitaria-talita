@@ -4,7 +4,7 @@ import { useCart } from '../contexts/CartContext';
 import { formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import {
-  ArrowLeft, Minus, Plus, QrCode, CreditCard, Banknote, ShoppingBag, X, Gift
+  ArrowLeft, Minus, Plus, QrCode, CreditCard, Banknote, ShoppingBag, X, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -16,9 +16,10 @@ export default function ClientCheckout() {
     nome: '', telefone: '', endereco: '', pagamento: 'pix', trocoPara: ''
   });
   
-  // Controle do Modal de Cadastro
-  const [showSignupModal, setShowSignupModal] = useState(false);
-  const [signupForm, setSignupForm] = useState({ email: '', password: '' });
+  // Controle do Modal de Autenticação Obrigatória
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(false);
+  const [authForm, setAuthForm] = useState({ email: '', password: '' });
   
   const [loading, setLoading] = useState(false);
 
@@ -37,39 +38,56 @@ export default function ClientCheckout() {
       // Já está logado, segue direto pro pedido
       processOrder(data.session.user.id);
     } else {
-      // Visitante, mostra a oferta de cadastro
-      setShowSignupModal(true);
+      // Visitante, obriga a logar ou cadastrar
+      setShowAuthModal(true);
     }
   };
 
-  // Cadastrar e salvar
-  const handleSignupAndOrder = async () => {
-    if (!signupForm.email || !signupForm.password || signupForm.password.length < 6) {
+  // Cadastrar/Logar e salvar
+  const handleAuthAndOrder = async () => {
+    if (!authForm.email || !authForm.password || authForm.password.length < 6) {
       toast.error("Insira um email válido e senha (mínimo 6 caracteres).");
       return;
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: signupForm.email,
-        password: signupForm.password,
-      });
+      let authData;
       
-      if (error) throw error;
+      if (isLoginMode) {
+        // Modo Login
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authForm.email,
+          password: authForm.password,
+        });
+        if (error) throw new Error("Email ou senha incorretos.");
+        authData = data;
+        toast.success("Login realizado com sucesso!");
+      } else {
+        // Modo Cadastro
+        const { data, error } = await supabase.auth.signUp({
+          email: authForm.email,
+          password: authForm.password,
+        });
+        if (error) throw new Error("Erro ao criar conta. Email já existe ou inválido.");
+        authData = data;
+        toast.success("Conta criada com sucesso! 🎉");
+      }
       
-      setShowSignupModal(false);
-      toast.success("Conta criada! Ganhou seu primeiro ponto. 🎉");
-      await processOrder(data.user?.id || null);
+      setShowAuthModal(false);
+      // Passa o ID do usuário garantido para finalizar o pedido
+      if (authData?.user?.id) {
+        await processOrder(authData.user.id);
+      }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao criar conta.");
+      toast.error(err.message || "Erro na autenticação.");
       setLoading(false);
     }
   };
 
   // O processo real de salvar no banco
-  const processOrder = async (userId: string | null) => {
+  const processOrder = async (userId: string) => {
     setLoading(true);
-    setShowSignupModal(false);
+    setShowAuthModal(false);
     try {
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -128,54 +146,55 @@ export default function ClientCheckout() {
 
   return (
     <div className="min-h-screen pb-32 relative">
-      {/* MODAL DE FIDELIDADE */}
-      {showSignupModal && (
+      {/* MODAL DE AUTENTICAÇÃO OBRIGATÓRIA */}
+      {showAuthModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-surface-container border border-orange-500/30 rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
-            <button onClick={() => setShowSignupModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+            <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
               <X className="w-6 h-6" />
             </button>
             
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
-              <Gift className="text-white w-8 h-8" />
+              <ShieldCheck className="text-white w-8 h-8" />
             </div>
             
-            <h3 className="font-heading text-2xl font-bold text-white mb-2">Salvar seus dados?</h3>
+            <h3 className="font-heading text-2xl font-bold text-white mb-2">Identificação Necessária</h3>
             <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-              Crie uma senha rápida para não precisar digitar tudo de novo na próxima vez e participe da fidelidade: <b>Compre 10, Ganhe 1 grátis!</b>
+              Para sua segurança e para evitar fraudes, precisamos que você se identifique antes de enviar o pedido.
             </p>
 
             <div className="space-y-3 mb-6">
               <input 
                 type="email" 
                 placeholder="Seu e-mail" 
-                value={signupForm.email}
-                onChange={e => setSignupForm({...signupForm, email: e.target.value})}
+                value={authForm.email}
+                onChange={e => setAuthForm({...authForm, email: e.target.value})}
                 className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 text-white focus:border-orange-500 outline-none transition-colors"
               />
               <input 
                 type="password" 
-                placeholder="Crie uma senha (mín. 6 letras/números)" 
-                value={signupForm.password}
-                onChange={e => setSignupForm({...signupForm, password: e.target.value})}
+                placeholder="Senha (mín. 6 caracteres)" 
+                value={authForm.password}
+                onChange={e => setAuthForm({...authForm, password: e.target.value})}
                 className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 text-white focus:border-orange-500 outline-none transition-colors"
               />
             </div>
 
             <div className="space-y-3">
               <button 
-                onClick={handleSignupAndOrder}
+                onClick={handleAuthAndOrder}
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-red-600 to-orange-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50"
               >
-                {loading ? 'Salvando...' : 'CADASTRAR E FINALIZAR'}
+                {loading ? 'Aguarde...' : (isLoginMode ? 'ENTRAR E FINALIZAR' : 'CADASTRAR E FINALIZAR')}
               </button>
+              
               <button 
-                onClick={() => processOrder(null)}
+                onClick={() => setIsLoginMode(!isLoginMode)}
                 disabled={loading}
-                className="w-full py-4 rounded-xl font-bold text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
+                className="w-full py-4 rounded-xl font-bold text-zinc-400 hover:text-white transition-colors text-sm"
               >
-                Não quero prêmios, só finalizar o pedido
+                {isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem uma conta? Faça Login'}
               </button>
             </div>
           </div>
@@ -194,7 +213,7 @@ export default function ClientCheckout() {
       {loading ? (
         <div className="flex flex-col items-center justify-center h-[60vh] p-8 text-center space-y-4">
           <div className="w-20 h-20 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
-          <p className="font-heading text-xl text-orange-500 font-bold animate-pulse">Enviando para a cozinha...</p>
+          <p className="font-heading text-xl text-orange-500 font-bold animate-pulse">Processando pedido...</p>
         </div>
       ) : (
         <main className="max-w-2xl mx-auto px-container pt-6 space-y-6">
@@ -292,7 +311,7 @@ export default function ClientCheckout() {
         </main>
       )}
 
-      {!loading && !showSignupModal && (
+      {!loading && !showAuthModal && (
         <div className="fixed bottom-0 left-0 right-0 p-container bg-zinc-950/90 backdrop-blur-2xl border-t border-white/5 z-50">
           <button 
             onClick={handlePreSubmit}
