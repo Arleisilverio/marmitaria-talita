@@ -124,22 +124,41 @@ export default function ClientHome() {
               <section className="px-container mt-6">
                 <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5">
                    <AnimatePresence mode="wait">
-                     <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0">
+                     <motion.div key={currentSlide} initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.8 }} className="absolute inset-0">
                        <img className="w-full h-full object-cover opacity-60" src={activeSlides[currentSlide].image} alt="Destaque" />
-                       <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
-                       <div className="absolute bottom-10 left-8">
-                          <h2 className="font-heading text-3xl font-bold text-white">{activeSlides[currentSlide].title}</h2>
-                          <p className="text-secondary font-mono text-sm">{activeSlides[currentSlide].description}</p>
+                       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+                       <div className="absolute bottom-12 left-10 max-w-lg">
+                          <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">{activeSlides[currentSlide].title}</h2>
+                          <p className="text-secondary font-mono text-sm md:text-lg">{activeSlides[currentSlide].description}</p>
                        </div>
                      </motion.div>
                    </AnimatePresence>
+
+                    {/* Navegação do Carrossel (Dots) */}
+                    {activeSlides.length > 1 && (
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                        {activeSlides.map((_: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setCurrentSlide(idx)}
+                            className={cn(
+                              "w-2 h-2 rounded-full transition-all duration-300",
+                              idx === currentSlide ? "w-6 bg-orange-500" : "bg-white/30 hover:bg-white/50"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
                 </div>
               </section>
 
               {/* PRATO PRINCIPAL */}
               <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
-                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden">
+                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative">
                   <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
+                  <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
+                    Para Hoje
+                  </div>
                 </motion.div>
                 
                 <motion.div variants={itemVariants} className="flex flex-col justify-center">
