@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { formatBRL } from '../lib/utils';
 import { 
   Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
-  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle 
+  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -46,7 +46,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Funções de atualização do cardápio
   const handlePriceChange = (size: string, value: number) => setMenu({ ...menu, prices: { ...menu.prices, [size]: value } });
   const updateMeat = (id: string, field: string, value: any) => setMenu({ ...menu, meats: menu.meats.map((m: any) => m.id === id ? { ...m, [field]: value } : m) });
   const addMeat = () => setMenu({ ...menu, meats: [...menu.meats, { id: 'm' + Date.now(), name: '', available: true }] });
@@ -67,7 +66,7 @@ export default function AdminDashboard() {
 
   const copyToWhatsApp = (order: any) => {
     const items = order.items_json?.map((i:any) => `${i.quantity}x ${i.name} ${i.size ? `(${i.size})` : ''}`).join('\n') || '';
-    const text = `*PEDIDO #${order.id.substring(0, 8).toUpperCase()}*\nCliente: ${order.customer_name}\nTelefone: ${order.customer_phone}\nEndereço: ${order.delivery_address}\nItens: \n${items}\nPagamento: ${order.payment_method?.toUpperCase()}\nTotal: ${formatBRL(order.total_amount)}`;
+    const text = `*PEDIDO #${order.id.substring(0, 8).toUpperCase()}*\nCliente: ${order.customer_name}\nTelefone: ${order.customer_phone}\nEndereço/Retirada: ${order.delivery_address}\nItens: \n${items}\nPagamento: ${order.payment_method?.toUpperCase()}\nTotal: ${formatBRL(order.total_amount)}`;
     navigator.clipboard.writeText(text);
     toast.success("Copiado para o WhatsApp!");
   };
@@ -88,13 +87,11 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-surface pb-32 md:pb-0">
       
-      {/* IMPRESSÃO */}
       {printingOrder && (
         <div className="fixed inset-0 bg-white z-[9999] p-8 text-black font-mono print-only block">
           <div className="max-w-[80mm] mx-auto border-2 border-dashed border-black p-4">
             <div className="text-center border-b-2 border-black pb-2 mb-4">
               <h1 className="text-xl font-bold uppercase">Marmitaria da Talita</h1>
-              <p className="text-xs">Sabor & Tradição Caseira</p>
               <p className="text-xs">{format(new Date(), "dd/MM/yyyy HH:mm")}</p>
             </div>
             <div className="mb-4">
@@ -112,8 +109,8 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="mb-4">
-              <p className="font-bold text-xs uppercase">ENDEREÇO:</p>
-              <p className="text-sm">{printingOrder.delivery_address}</p>
+              <p className="font-bold text-xs uppercase">LOCAL:</p>
+              <p className="text-sm font-bold">{printingOrder.delivery_address}</p>
             </div>
             <div className="border-t-2 border-black pt-2">
               <div className="flex justify-between font-bold text-sm">
@@ -128,28 +125,43 @@ export default function AdminDashboard() {
       )}
 
       <div className="no-print">
-        <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full">
-          <div className="flex items-center gap-3">
+        <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full overflow-x-auto hide-scrollbar">
+          <div className="flex items-center gap-3 min-w-max mr-4">
             <h1 className="text-lg md:text-xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
               PAINEL DA CHEF
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 mr-2">
-              <span className="text-[10px] font-mono text-zinc-400 uppercase font-bold hidden sm:block">STATUS DA LOJA</span>
+          
+          <div className="flex items-center gap-2 min-w-max">
+            {/* BOTÃO LOJA */}
+            <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-3 py-1">
+              <span className="text-[9px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Loja Geral</span>
               <button 
                 onClick={() => {
                   const newState = { ...menu, isOpen: !menu.isOpen };
-                  setMenu(newState);
-                  api.updateMenu(newState);
-                  toast(newState.isOpen ? 'Loja Aberta!' : 'Loja Fechada!', { icon: newState.isOpen ? '🟢' : '🔴' });
+                  setMenu(newState); api.updateMenu(newState);
+                  toast(newState.isOpen ? 'Loja Aberta!' : 'Loja Fechada!');
                 }}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 border transition-all ${menu.isOpen ? 'bg-green-500/10 text-green-500 border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'bg-red-500/10 text-red-500 border-red-500/30'}`}
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${menu.isOpen ? 'text-green-500' : 'text-red-500'}`}
               >
-                <Store className="w-3 h-3" /> {menu.isOpen ? 'ABERTA' : 'FECHADA'}
+                <Store className="w-3.5 h-3.5" /> {menu.isOpen ? 'ABERTA' : 'FECHADA'}
               </button>
             </div>
-            <div className="w-2 h-2 rounded-full bg-green-500 pulse-led hidden sm:block"></div>
+            
+            {/* BOTÃO DELIVERY */}
+            <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-3 py-1">
+              <span className="text-[9px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Motoboy</span>
+              <button 
+                onClick={() => {
+                  const newState = { ...menu, isDeliveryOpen: !menu.isDeliveryOpen };
+                  setMenu(newState); api.updateMenu(newState);
+                  toast(newState.isDeliveryOpen ? 'Delivery Ligado!' : 'Delivery Desligado!');
+                }}
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${menu.isDeliveryOpen ? 'text-blue-400' : 'text-zinc-500'}`}
+              >
+                <Bike className="w-3.5 h-3.5" /> {menu.isDeliveryOpen ? 'LIGADO' : 'DESLIGADO'}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -174,31 +186,26 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* ABA 1: GERENCIAR CARDÁPIO */}
           {activeTab === 'menu' && menu && (
             <div className="space-y-8 pb-12 animate-fade-in">
               <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
-                <div>
-                  <h3 className="font-heading text-lg font-bold text-white">Configurações e Pratos</h3>
-                </div>
+                <div><h3 className="font-heading text-lg font-bold text-white">Configurações e Pratos</h3></div>
                 <button onClick={handleMenuSave} className="bg-gradient-to-r from-red-600 to-orange-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 shadow-[0_0_15px_rgba(234,88,12,0.3)]">
                   <Save className="w-5 h-5" /> PUBLICAR
                 </button>
               </div>
 
-              {/* Tempo de Preparo */}
               <div className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between">
                 <div>
                   <p className="text-white font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/> Tempo de Preparo Padrão</p>
-                  <p className="text-xs text-zinc-500 mt-1">Isso define o cronômetro do painel de pedidos</p>
+                  <p className="text-xs text-zinc-500 mt-1">Define o cronômetro do painel de pedidos</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-20 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl" />
-                  <span className="text-zinc-500 text-sm font-bold uppercase">Minutos</span>
+                  <span className="text-zinc-500 text-sm font-bold uppercase">Min</span>
                 </div>
               </div>
 
-              {/* Imagem */}
               <div className="relative h-64 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
                 {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 text-zinc-700" />}
                 <div className="absolute bottom-4 left-0 w-full flex justify-center">
@@ -209,19 +216,11 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Textos */}
               <div className="grid md:grid-cols-2 gap-6">
-                 <div>
-                   <label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Nome do Prato</label>
-                   <input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-orange-500" />
-                 </div>
-                 <div>
-                   <label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Descrição</label>
-                   <textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none resize-none focus:border-orange-500" rows={3} />
-                 </div>
+                 <div><label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Nome do Prato</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-orange-500" /></div>
+                 <div><label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Descrição</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none resize-none focus:border-orange-500" rows={3} /></div>
               </div>
 
-              {/* Preços */}
               <div className="glass-card p-6 rounded-2xl border border-white/5">
                 <label className="text-zinc-500 text-xs font-mono uppercase mb-4 block">Valores dos Tamanhos (R$)</label>
                 <div className="grid grid-cols-3 gap-4">
@@ -234,7 +233,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Carnes e Bebidas */}
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-white/10 pb-2">
@@ -243,7 +241,7 @@ export default function AdminDashboard() {
                   </div>
                   {menu.meats.map((meat: any) => (
                     <div key={meat.id} className="flex gap-2">
-                      <input type="text" value={meat.name} onChange={e => updateMeat(meat.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" placeholder="Ex: Frango Assado" />
+                      <input type="text" value={meat.name} onChange={e => updateMeat(meat.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" />
                       <button onClick={() => updateMeat(meat.id, 'available', !meat.available)} className={`px-4 rounded-lg text-xs font-bold transition-colors ${meat.available ? 'bg-green-500/20 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
                         {meat.available ? 'TEM' : 'ACABOU'}
                       </button>
@@ -257,8 +255,8 @@ export default function AdminDashboard() {
                   </div>
                   {menu.drinks.map((drink: any) => (
                     <div key={drink.id} className="flex gap-2">
-                      <input type="text" value={drink.name} onChange={e => updateDrink(drink.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" placeholder="Ex: Coca-Cola Lata" />
-                      <input type="number" value={drink.price} onChange={e => updateDrink(drink.id, 'price', parseFloat(e.target.value))} className="w-24 bg-zinc-900 p-3 rounded-lg text-white text-sm text-center border border-white/5 focus:border-orange-500 outline-none" placeholder="Preço" />
+                      <input type="text" value={drink.name} onChange={e => updateDrink(drink.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" />
+                      <input type="number" value={drink.price} onChange={e => updateDrink(drink.id, 'price', parseFloat(e.target.value))} className="w-24 bg-zinc-900 p-3 rounded-lg text-white text-sm text-center border border-white/5 focus:border-orange-500 outline-none" />
                     </div>
                   ))}
                 </div>
@@ -266,18 +264,13 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ABA 2: PEDIDOS DE HOJE */}
           {activeTab === 'orders' && (
             <div className="animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {todayOrders.length === 0 ? (
-                  <div className="col-span-full text-center p-12 glass-card rounded-xl text-zinc-500 border border-white/5">
-                    <Utensils className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    <p>Nenhum pedido para hoje ainda.</p>
-                  </div>
+                  <div className="col-span-full text-center p-12 glass-card rounded-xl text-zinc-500 border border-white/5">Nenhum pedido para hoje ainda.</div>
                 ) : todayOrders.map(order => {
                   
-                  // LÓGICA DO CRONÔMETRO
                   const orderTime = new Date(order.created_at).getTime();
                   const targetTime = orderTime + ((menu.prepTime || 40) * 60000);
                   const diff = targetTime - now;
@@ -299,12 +292,9 @@ export default function AdminDashboard() {
                         <div className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold border ${order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border-green-500/30' : 'bg-red-500/10 text-red-500'}`}>
                           {order.status}
                         </div>
-                        
-                        {/* CRONÔMETRO VISUAL */}
                         {showTimer && (
                           <div className={`flex items-center gap-1 font-mono text-xs font-bold px-2 py-1 rounded border ${isLate ? 'bg-red-500/20 text-red-500 border-red-500/50 animate-pulse' : 'bg-white/5 text-zinc-300 border-white/10'}`}>
-                            {isLate ? <AlertTriangle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
-                            {isLate ? '-' : ''}{timeString}
+                            {isLate ? <AlertTriangle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}{isLate ? '-' : ''}{timeString}
                           </div>
                         )}
                       </div>
@@ -321,7 +311,9 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-end pt-4 border-t border-white/5">
                         <div>
                           <p className="font-mono text-[10px] text-zinc-500 uppercase">{order.payment_method}</p>
-                          {order.change_for && <p className="text-xs text-orange-400">Troco p/ {order.change_for}</p>}
+                          <p className={`text-xs font-bold ${order.delivery_address.includes('RETIRADA') ? 'text-blue-400' : 'text-zinc-400'}`}>
+                            {order.delivery_address.includes('RETIRADA') ? '🏪 RETIRADA NO BALCÃO' : '🛵 ENTREGA'}
+                          </p>
                         </div>
                         <p className="font-heading font-bold text-xl text-tertiary">{formatBRL(order.total_amount)}</p>
                       </div>
@@ -338,7 +330,7 @@ export default function AdminDashboard() {
                         <>
                           <button onClick={() => handlePrint(order)} className="w-full bg-white text-black py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-2"><Printer className="w-4 h-4"/> IMPRIMIR COMANDA</button>
                           <button onClick={() => copyToWhatsApp(order)} className="w-full bg-[#25D366]/20 text-[#25D366] py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-2 border border-[#25D366]/50"><Copy className="w-4 h-4"/> WHATSAPP DO MOTOBOY</button>
-                          <button onClick={() => handleOrderStatus(order.id, 'entregue')} className="w-full bg-zinc-800 text-zinc-400 hover:text-white py-3 rounded-xl font-bold text-xs">MARCAR COMO ENTREGUE</button>
+                          <button onClick={() => handleOrderStatus(order.id, 'entregue')} className="w-full bg-zinc-800 text-zinc-400 hover:text-white py-3 rounded-xl font-bold text-xs">MARCAR COMO CONCLUÍDO</button>
                         </>
                       )}
                     </div>
@@ -348,26 +340,17 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ABA 3: RELATÓRIOS */}
           {activeTab === 'reports' && (
             <div className="space-y-6 animate-fade-in">
               <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
-                    <Calendar className="w-6 h-6" />
-                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Calendar className="w-6 h-6" /></div>
                   <div>
-                    <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data do relatório</p>
-                    <input 
-                      type="date" 
-                      value={reportDate} 
-                      onChange={(e) => setReportDate(e.target.value)}
-                      className="bg-transparent text-xl font-heading font-bold text-white outline-none mt-1"
-                    />
+                    <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data</p>
+                    <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="bg-transparent text-xl font-heading font-bold text-white outline-none mt-1" />
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="glass-card p-6 rounded-2xl border border-white/5">
                   <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Faturamento Dia</p>
@@ -382,68 +365,17 @@ export default function AdminDashboard() {
                   <p className="text-3xl font-heading font-black text-white">{deliveredOrders.length}</p>
                 </div>
               </div>
-
-              <div className="bg-zinc-900 rounded-2xl border border-white/5 overflow-hidden mt-8">
-                <div className="p-4 border-b border-white/5 bg-zinc-950">
-                  <h3 className="font-bold text-white">Histórico Detalhado ({format(parseISO(reportDate), 'dd/MM/yyyy')})</h3>
-                </div>
-                <div className="divide-y divide-white/5">
-                  {reportOrders.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500">Nenhum registro encontrado para esta data.</div>
-                  ) : (
-                    reportOrders.map(order => (
-                      <div key={order.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/5 transition-colors">
-                        <div>
-                          <p className="font-bold text-white">{order.customer_name}</p>
-                          <p className="text-xs text-zinc-500 font-mono mt-1">
-                            {format(new Date(order.created_at), "HH:mm")} • {order.payment_method?.toUpperCase()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-tertiary">{formatBRL(order.total_amount)}</p>
-                          <p className={`text-[10px] uppercase font-bold mt-1 ${order.status === 'entregue' ? 'text-green-500' : 'text-zinc-500'}`}>{order.status}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </main>
       </div>
 
-      {/* A MESMA BARRA INFERIOR PARA MANTER O APP UNIFICADO */}
       <nav className="bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe md:hidden">
-        <button 
-          onClick={() => navigate('/', { state: { tab: 'menu' } })}
-          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
-        >
-          <Utensils className="w-6 h-6 mb-1" />
-          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span>
-        </button>
-        <button 
-          onClick={() => navigate('/', { state: { tab: 'orders' } })}
-          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
-        >
-          <Receipt className="w-6 h-6 mb-1" />
-          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span>
-        </button>
-        <button 
-          onClick={() => navigate('/', { state: { tab: 'profile' } })}
-          className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"
-        >
-          <User className="w-6 h-6 mb-1" />
-          <span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span>
-        </button>
-        <button 
-          className="flex flex-col items-center justify-center transition-all text-orange-500"
-        >
-          <ShieldAlert className="w-6 h-6 mb-1 text-orange-500" />
-          <span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500">Painel</span>
-        </button>
+        <button onClick={() => navigate('/', { state: { tab: 'menu' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><Utensils className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span></button>
+        <button onClick={() => navigate('/', { state: { tab: 'orders' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><Receipt className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span></button>
+        <button onClick={() => navigate('/', { state: { tab: 'profile' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><User className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span></button>
+        <button className="flex flex-col items-center justify-center transition-all text-orange-500"><ShieldAlert className="w-6 h-6 mb-1 text-orange-500" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500">Painel</span></button>
       </nav>
-
     </div>
   );
 }

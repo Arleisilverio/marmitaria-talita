@@ -9,10 +9,11 @@ dotenv.config();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8791437029:AAFIHtfz1gMDStGYJVlBMRmqGWWCYwgtwaE";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946";
 
-// Menu continua aqui por enquanto (como cache super rápido). Pedidos não!
+// Menu continua aqui por enquanto
 let db = {
   menu: {
     isOpen: true,
+    isDeliveryOpen: true, // NOVO: Controle independente do Delivery
     prepTime: 40,
     title: "Feijoada Completa da Chef",
     description: "Feijoada preparada com carnes nobres, acompanhada de arroz soltinho, couve refogada no alho, farofa crocante e fatias de laranja fresca.",
@@ -55,7 +56,7 @@ async function startServer() {
 
 👤 *Cliente:* ${newOrder.customer_name}
 📞 *Telefone:* ${newOrder.customer_phone}
-📍 *Endereço:* ${newOrder.delivery_address}
+📍 *Endereço/Retirada:* ${newOrder.delivery_address}
 💳 *Pagamento:* ${newOrder.payment_method?.toUpperCase()}${newOrder.change_for ? ` (Troco para ${newOrder.change_for})` : ''}
 
 📋 *Itens:*
