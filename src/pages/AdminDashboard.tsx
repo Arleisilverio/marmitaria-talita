@@ -125,124 +125,125 @@ export default function AdminDashboard() {
       )}
 
       <div className="no-print">
-        <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-between items-center px-4 py-3 w-full overflow-x-auto hide-scrollbar">
-          <div className="flex items-center gap-3 min-w-max mr-4">
-            <h1 className="text-lg md:text-xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
-              PAINEL DA CHEF
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-2 min-w-max">
-            {/* BOTÃO LOJA */}
-            <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-3 py-1">
-              <span className="text-[9px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Loja Geral</span>
-              <button 
-                onClick={() => {
-                  const newState = { ...menu, isOpen: !menu.isOpen };
-                  setMenu(newState); api.updateMenu(newState);
-                  toast(newState.isOpen ? 'Loja Aberta!' : 'Loja Fechada!');
-                }}
-                className={`flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${menu.isOpen ? 'text-green-500' : 'text-red-500'}`}
-              >
-                <Store className="w-3.5 h-3.5" /> {menu.isOpen ? 'ABERTA' : 'FECHADA'}
-              </button>
+        <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(255,61,0,0.3)] docked full-width top-0 sticky z-50 flex justify-center w-full px-4 py-3">
+          <div className="max-w-7xl w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
+            <div className="flex items-center gap-3 min-w-max mr-4">
+              <h1 className="text-lg md:text-2xl font-heading font-black italic text-transparent bg-clip-text bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 uppercase tracking-widest">
+                PAINEL DA CHEF
+              </h1>
             </div>
             
-            {/* BOTÃO DELIVERY */}
-            <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-3 py-1">
-              <span className="text-[9px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Motoboy</span>
-              <button 
-                onClick={() => {
-                  const newState = { ...menu, isDeliveryOpen: !menu.isDeliveryOpen };
-                  setMenu(newState); api.updateMenu(newState);
-                  toast(newState.isDeliveryOpen ? 'Delivery Ligado!' : 'Delivery Desligado!');
-                }}
-                className={`flex items-center gap-1.5 text-xs font-bold uppercase transition-all ${menu.isDeliveryOpen ? 'text-blue-400' : 'text-zinc-500'}`}
-              >
-                <Bike className="w-3.5 h-3.5" /> {menu.isDeliveryOpen ? 'LIGADO' : 'DESLIGADO'}
-              </button>
+            <div className="flex items-center gap-2 min-w-max">
+              <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-4 py-1.5 md:py-2">
+                <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Loja Geral</span>
+                <button 
+                  onClick={() => {
+                    const newState = { ...menu, isOpen: !menu.isOpen };
+                    setMenu(newState); api.updateMenu(newState);
+                    toast(newState.isOpen ? 'Loja Aberta!' : 'Loja Fechada!');
+                  }}
+                  className={`flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase transition-all ${menu.isOpen ? 'text-green-500' : 'text-red-500'}`}
+                >
+                  <Store className="w-3.5 h-3.5 md:w-4 md:h-4" /> {menu.isOpen ? 'ABERTA' : 'FECHADA'}
+                </button>
+              </div>
+              
+              <div className="flex flex-col items-center bg-zinc-900 border border-white/10 rounded-xl px-4 py-1.5 md:py-2">
+                <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Motoboy</span>
+                <button 
+                  onClick={() => {
+                    const newState = { ...menu, isDeliveryOpen: !menu.isDeliveryOpen };
+                    setMenu(newState); api.updateMenu(newState);
+                    toast(newState.isDeliveryOpen ? 'Delivery Ligado!' : 'Delivery Desligado!');
+                  }}
+                  className={`flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase transition-all ${menu.isDeliveryOpen ? 'text-blue-400' : 'text-zinc-500'}`}
+                >
+                  <Bike className="w-3.5 h-3.5 md:w-4 md:h-4" /> {menu.isDeliveryOpen ? 'LIGADO' : 'DESLIGADO'}
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto px-container py-8 flex flex-col gap-8 md:pl-28">
+        <main className="max-w-7xl mx-auto px-container py-8 flex flex-col gap-8">
           <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
             <div>
-              <p className="font-mono text-xs text-primary mb-1 uppercase">Gestão Completa</p>
-              <h2 className="font-heading text-3xl font-bold text-white">
+              <p className="font-mono text-xs md:text-sm text-primary mb-1 uppercase tracking-widest">Gestão Completa</p>
+              <h2 className="font-heading text-3xl md:text-4xl font-bold text-white">
                 {activeTab === 'menu' ? 'Gerenciar Cardápio' : activeTab === 'orders' ? 'Operação de Hoje' : 'Contabilidade'}
               </h2>
             </div>
-            <div className="flex p-1 bg-zinc-900 rounded-xl border border-white/5 overflow-x-auto hide-scrollbar">
-              <button onClick={() => setActiveTab('menu')} className={`flex-1 flex justify-center items-center gap-2 px-6 py-3 rounded-lg font-heading text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'menu' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
+            <div className="flex p-1 bg-zinc-900 rounded-xl md:rounded-2xl border border-white/5 overflow-x-auto hide-scrollbar shadow-lg">
+              <button onClick={() => setActiveTab('menu')} className={`flex-1 flex justify-center items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-lg md:rounded-xl font-heading text-xs md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'menu' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
                 <Utensils className="w-4 h-4" /> Cardápio
               </button>
-              <button onClick={() => setActiveTab('orders')} className={`flex-1 flex justify-center items-center gap-2 px-6 py-3 rounded-lg font-heading text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
+              <button onClick={() => setActiveTab('orders')} className={`flex-1 flex justify-center items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-lg md:rounded-xl font-heading text-xs md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
                 <Receipt className="w-4 h-4" /> Hoje <span className="bg-orange-500 text-white rounded-full px-2 py-0.5 ml-1">{todayOrders.filter(o => o.status === 'pendente').length}</span>
               </button>
-              <button onClick={() => setActiveTab('reports')} className={`flex-1 flex justify-center items-center gap-2 px-6 py-3 rounded-lg font-heading text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
+              <button onClick={() => setActiveTab('reports')} className={`flex-1 flex justify-center items-center gap-2 px-6 md:px-8 py-3 md:py-4 rounded-lg md:rounded-xl font-heading text-xs md:text-sm font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'reports' ? 'bg-zinc-800 text-orange-500 shadow-lg' : 'text-zinc-500 hover:text-white'}`}>
                 <BarChart3 className="w-4 h-4" /> Relatórios
               </button>
             </div>
           </div>
 
           {activeTab === 'menu' && menu && (
-            <div className="space-y-8 pb-12 animate-fade-in">
-              <div className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
-                <div><h3 className="font-heading text-lg font-bold text-white">Configurações e Pratos</h3></div>
-                <button onClick={handleMenuSave} className="bg-gradient-to-r from-red-600 to-orange-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-transform hover:scale-105 shadow-[0_0_15px_rgba(234,88,12,0.3)]">
-                  <Save className="w-5 h-5" /> PUBLICAR
+            <div className="space-y-8 pb-12 animate-fade-in max-w-5xl">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/50 p-6 rounded-2xl border border-white/5">
+                <div>
+                  <h3 className="font-heading text-lg md:text-xl font-bold text-white">Configurações e Pratos</h3>
+                  <p className="text-zinc-500 text-sm">Atualize os valores e fotos para o cliente.</p>
+                </div>
+                <button onClick={handleMenuSave} className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-orange-500 text-white px-8 py-3 md:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-105 shadow-[0_0_15px_rgba(234,88,12,0.3)]">
+                  <Save className="w-5 h-5" /> PUBLICAR ALTERAÇÕES
                 </button>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* Tempo de Preparo */}
-                <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+                <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col justify-between">
                   <div className="mb-4">
-                    <p className="text-white font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/> Tempo de Preparo</p>
-                    <p className="text-xs text-zinc-500 mt-1">Define o cronômetro do painel</p>
+                    <p className="text-white font-bold md:text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-orange-500"/> Tempo de Preparo</p>
+                    <p className="text-xs md:text-sm text-zinc-500 mt-1">Define o cronômetro do painel</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-24 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl" />
-                    <span className="text-zinc-500 text-sm font-bold uppercase">Minutos</span>
+                  <div className="flex items-center gap-3">
+                    <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-24 md:w-32 bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none text-center font-bold text-xl md:text-2xl" />
+                    <span className="text-zinc-500 text-sm md:text-base font-bold uppercase">Minutos</span>
                   </div>
                 </div>
 
-                {/* Taxa de Entrega */}
-                <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+                <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col justify-between">
                   <div className="mb-4">
-                    <p className="text-white font-bold flex items-center gap-2"><Bike className="w-4 h-4 text-blue-400"/> Taxa de Entrega Padrão</p>
-                    <p className="text-xs text-zinc-500 mt-1">Valor cobrado no delivery</p>
+                    <p className="text-white font-bold md:text-lg flex items-center gap-2"><Bike className="w-5 h-5 text-blue-400"/> Taxa de Entrega Padrão</p>
+                    <p className="text-xs md:text-sm text-zinc-500 mt-1">Valor cobrado no delivery</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-500 font-bold">R$</span>
-                    <input type="number" step="0.50" value={menu.deliveryFee !== undefined ? menu.deliveryFee : 5.00} onChange={e => setMenu({...menu, deliveryFee: parseFloat(e.target.value) || 0})} className="w-32 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl focus:border-orange-500" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-zinc-500 font-bold md:text-lg">R$</span>
+                    <input type="number" step="0.50" value={menu.deliveryFee !== undefined ? menu.deliveryFee : 5.00} onChange={e => setMenu({...menu, deliveryFee: parseFloat(e.target.value) || 0})} className="w-32 md:w-40 bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none text-center font-bold text-xl md:text-2xl focus:border-orange-500" />
                   </div>
                 </div>
               </div>
 
-              <div className="relative h-64 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
-                {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 text-zinc-700" />}
-                <div className="absolute bottom-4 left-0 w-full flex justify-center">
-                  <label className="bg-white/90 backdrop-blur-md text-black px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg">
-                    <Camera className="w-4 h-4" /> ALTERAR FOTO
+              <div className="relative h-64 md:h-80 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
+                {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 md:w-16 md:h-16 text-zinc-700" />}
+                <div className="absolute bottom-6 left-0 w-full flex justify-center">
+                  <label className="bg-white/90 hover:bg-white backdrop-blur-md text-black px-6 py-3 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-xl transition-colors">
+                    <Camera className="w-4 h-4 md:w-5 md:h-5" /> ALTERAR FOTO PRINCIPAL
                     <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
                   </label>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                 <div><label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Nome do Prato</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-orange-500" /></div>
-                 <div><label className="text-zinc-500 text-xs font-mono uppercase mb-2 block">Descrição</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none resize-none focus:border-orange-500" rows={3} /></div>
+              <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+                 <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-orange-500 text-lg md:text-xl" /></div>
+                 <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-orange-500 text-base md:text-lg" rows={3} /></div>
               </div>
 
-              <div className="glass-card p-6 rounded-2xl border border-white/5">
-                <label className="text-zinc-500 text-xs font-mono uppercase mb-4 block">Valores dos Tamanhos (R$)</label>
-                <div className="grid grid-cols-3 gap-4">
+              <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white/5">
+                <label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-6 block text-center">Valores dos Tamanhos (R$)</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    {['p', 'm', 'g'].map(size => (
-                     <div key={size}>
-                       <label className="text-white text-sm font-bold uppercase mb-1 block">Tam. {size.toUpperCase()}</label>
-                       <input type="number" step="0.01" value={menu.prices[size]} onChange={e => handlePriceChange(size, parseFloat(e.target.value) || 0)} className="w-full bg-zinc-900 border border-white/10 p-4 rounded-xl text-white outline-none text-xl font-bold font-heading focus:border-orange-500" />
+                     <div key={size} className="bg-zinc-900/50 p-4 rounded-2xl border border-white/5">
+                       <label className="text-white text-sm md:text-base font-bold uppercase mb-2 block text-center">Tamanho {size.toUpperCase()}</label>
+                       <input type="number" step="0.01" value={menu.prices[size]} onChange={e => handlePriceChange(size, parseFloat(e.target.value) || 0)} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none text-2xl md:text-3xl text-center font-bold font-heading focus:border-orange-500" />
                      </div>
                    ))}
                 </div>
@@ -250,28 +251,28 @@ export default function AdminDashboard() {
 
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                    <label className="text-zinc-500 text-xs font-mono uppercase">Carnes do Dia</label>
-                    <button onClick={addMeat} className="text-orange-500 text-xs font-bold bg-orange-500/10 px-2 py-1 rounded">+ ADC</button>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                    <label className="text-zinc-500 text-xs md:text-sm font-mono uppercase">Carnes do Dia</label>
+                    <button onClick={addMeat} className="text-orange-500 text-xs md:text-sm font-bold bg-orange-500/10 px-4 py-2 rounded-lg hover:bg-orange-500/20 transition-colors">+ ADICIONAR CARNE</button>
                   </div>
                   {menu.meats.map((meat: any) => (
                     <div key={meat.id} className="flex gap-2">
-                      <input type="text" value={meat.name} onChange={e => updateMeat(meat.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" />
-                      <button onClick={() => updateMeat(meat.id, 'available', !meat.available)} className={`px-4 rounded-lg text-xs font-bold transition-colors ${meat.available ? 'bg-green-500/20 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                      <input type="text" value={meat.name} onChange={e => updateMeat(meat.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 md:p-4 rounded-xl text-white text-sm md:text-base border border-white/5 focus:border-orange-500 outline-none" />
+                      <button onClick={() => updateMeat(meat.id, 'available', !meat.available)} className={`px-4 md:px-6 rounded-xl text-xs md:text-sm font-bold transition-colors ${meat.available ? 'bg-green-500/20 text-green-500 hover:bg-green-500/30' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'}`}>
                         {meat.available ? 'TEM' : 'ACABOU'}
                       </button>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                    <label className="text-zinc-500 text-xs font-mono uppercase">Bebidas e Extras</label>
-                    <button onClick={addDrink} className="text-orange-500 text-xs font-bold bg-orange-500/10 px-2 py-1 rounded">+ ADC</button>
+                  <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                    <label className="text-zinc-500 text-xs md:text-sm font-mono uppercase">Bebidas e Extras</label>
+                    <button onClick={addDrink} className="text-orange-500 text-xs md:text-sm font-bold bg-orange-500/10 px-4 py-2 rounded-lg hover:bg-orange-500/20 transition-colors">+ ADICIONAR BEBIDA</button>
                   </div>
                   {menu.drinks.map((drink: any) => (
                     <div key={drink.id} className="flex gap-2">
-                      <input type="text" value={drink.name} onChange={e => updateDrink(drink.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 rounded-lg text-white text-sm border border-white/5 focus:border-orange-500 outline-none" />
-                      <input type="number" value={drink.price} onChange={e => updateDrink(drink.id, 'price', parseFloat(e.target.value))} className="w-24 bg-zinc-900 p-3 rounded-lg text-white text-sm text-center border border-white/5 focus:border-orange-500 outline-none" />
+                      <input type="text" value={drink.name} onChange={e => updateDrink(drink.id, 'name', e.target.value)} className="flex-1 bg-zinc-900 p-3 md:p-4 rounded-xl text-white text-sm md:text-base border border-white/5 focus:border-orange-500 outline-none" placeholder="Ex: Coca-Cola 2L" />
+                      <input type="number" value={drink.price} onChange={e => updateDrink(drink.id, 'price', parseFloat(e.target.value))} className="w-24 md:w-32 bg-zinc-900 p-3 md:p-4 rounded-xl text-white text-sm md:text-base text-center border border-white/5 focus:border-orange-500 outline-none" placeholder="R$" />
                     </div>
                   ))}
                 </div>
@@ -281,9 +282,9 @@ export default function AdminDashboard() {
 
           {activeTab === 'orders' && (
             <div className="animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {todayOrders.length === 0 ? (
-                  <div className="col-span-full text-center p-12 glass-card rounded-xl text-zinc-500 border border-white/5">Nenhum pedido para hoje ainda.</div>
+                  <div className="col-span-full text-center py-20 glass-card rounded-2xl text-zinc-500 border border-white/5 md:text-lg">Nenhum pedido para hoje ainda.</div>
                 ) : todayOrders.map(order => {
                   
                   const orderTime = new Date(order.created_at).getTime();
@@ -297,55 +298,55 @@ export default function AdminDashboard() {
                   const showTimer = order.status === 'pendente' || order.status === 'confirmado';
 
                   return (
-                  <div key={order.id} className={`glass-card rounded-xl overflow-hidden flex flex-col border ${order.status === 'pendente' ? 'border-orange-500/50 shadow-[0_0_15px_rgba(234,88,12,0.1)]' : 'border-white/5'}`}>
-                    <div className="p-4 border-b border-white/5 flex justify-between items-start">
+                  <div key={order.id} className={`glass-card rounded-2xl overflow-hidden flex flex-col border transition-all ${order.status === 'pendente' ? 'border-orange-500/50 shadow-[0_0_20px_rgba(234,88,12,0.15)] scale-[1.02]' : 'border-white/5 hover:border-white/10'}`}>
+                    <div className="p-5 border-b border-white/5 flex justify-between items-start">
                       <div>
-                        <h3 className="font-heading font-bold text-lg text-white">{order.customer_name}</h3>
-                        <p className="font-sans text-xs text-zinc-500 mt-1">{format(new Date(order.created_at), "HH:mm")}</p>
+                        <h3 className="font-heading font-bold text-lg md:text-xl text-white">{order.customer_name}</h3>
+                        <p className="font-sans text-xs md:text-sm text-zinc-500 mt-1">{format(new Date(order.created_at), "HH:mm")}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <div className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold border ${order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border-green-500/30' : 'bg-red-500/10 text-red-500'}`}>
+                        <div className={`px-3 py-1.5 rounded-full text-[10px] md:text-xs uppercase font-bold border ${order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' : order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border-green-500/30' : 'bg-red-500/10 text-red-500'}`}>
                           {order.status}
                         </div>
                         {showTimer && (
-                          <div className={`flex items-center gap-1 font-mono text-xs font-bold px-2 py-1 rounded border ${isLate ? 'bg-red-500/20 text-red-500 border-red-500/50 animate-pulse' : 'bg-white/5 text-zinc-300 border-white/10'}`}>
-                            {isLate ? <AlertTriangle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}{isLate ? '-' : ''}{timeString}
+                          <div className={`flex items-center gap-1.5 font-mono text-xs md:text-sm font-bold px-3 py-1.5 rounded-lg border ${isLate ? 'bg-red-500/20 text-red-500 border-red-500/50 animate-pulse' : 'bg-white/5 text-zinc-300 border-white/10'}`}>
+                            {isLate ? <AlertTriangle className="w-3 h-3 md:w-4 md:h-4"/> : <Clock className="w-3 h-3 md:w-4 md:h-4"/>}{isLate ? '-' : ''}{timeString}
                           </div>
                         )}
                       </div>
                     </div>
                     
-                    <div className="p-4 flex-grow space-y-4 bg-black/20">
-                      <div className="space-y-1">
+                    <div className="p-5 flex-grow space-y-4 bg-black/20">
+                      <div className="space-y-2">
                         {order.items_json?.map((i:any, idx:number) => (
-                          <p key={idx} className="font-sans text-sm text-zinc-300 font-medium leading-relaxed">
-                            <span className="font-bold text-zinc-500">{i.quantity}x</span> {i.name} {i.size && <span className="text-orange-400">({i.size})</span>}
+                          <p key={idx} className="font-sans text-sm md:text-base text-zinc-300 font-medium leading-relaxed">
+                            <span className="font-bold text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-md mr-2">{i.quantity}x</span> {i.name} {i.size && <span className="text-orange-400">({i.size})</span>}
                           </p>
                         ))}
                       </div>
-                      <div className="flex justify-between items-end pt-4 border-t border-white/5">
+                      <div className="flex justify-between items-end pt-5 border-t border-white/5">
                         <div>
-                          <p className="font-mono text-[10px] text-zinc-500 uppercase">{order.payment_method}</p>
-                          <p className={`text-xs font-bold ${order.delivery_address.includes('RETIRADA') ? 'text-blue-400' : 'text-zinc-400'}`}>
+                          <p className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase">{order.payment_method}</p>
+                          <p className={`text-xs md:text-sm font-bold mt-1 ${order.delivery_address.includes('RETIRADA') ? 'text-blue-400' : 'text-zinc-400'}`}>
                             {order.delivery_address.includes('RETIRADA') ? '🏪 RETIRADA NO BALCÃO' : '🛵 ENTREGA'}
                           </p>
                         </div>
-                        <p className="font-heading font-bold text-xl text-tertiary">{formatBRL(order.total_amount)}</p>
+                        <p className="font-heading font-bold text-2xl text-tertiary">{formatBRL(order.total_amount)}</p>
                       </div>
                     </div>
                     
-                    <div className="p-4 flex flex-col gap-2">
+                    <div className="p-5 flex flex-col gap-3">
                       {order.status === 'pendente' && (
-                        <div className="flex gap-2">
-                          <button onClick={() => handleOrderStatus(order.id, 'confirmado')} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold text-xs"><CheckCircle className="inline w-4 h-4 mr-1"/> ACEITAR</button>
-                          <button onClick={() => handleOrderStatus(order.id, 'negado')} className="flex-1 bg-zinc-800 text-red-500 py-3 rounded-xl font-bold text-xs">NEGAR</button>
+                        <div className="flex gap-3">
+                          <button onClick={() => handleOrderStatus(order.id, 'confirmado')} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3.5 md:py-4 rounded-xl font-bold text-xs md:text-sm transition-colors shadow-lg shadow-green-600/20"><CheckCircle className="inline w-4 h-4 mr-1"/> ACEITAR PEDIDO</button>
+                          <button onClick={() => handleOrderStatus(order.id, 'negado')} className="bg-zinc-800 hover:bg-zinc-700 text-red-500 px-6 py-3.5 md:py-4 rounded-xl font-bold text-xs md:text-sm transition-colors">NEGAR</button>
                         </div>
                       )}
                       {order.status === 'confirmado' && (
                         <>
-                          <button onClick={() => handlePrint(order)} className="w-full bg-white text-black py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-2"><Printer className="w-4 h-4"/> IMPRIMIR COMANDA</button>
-                          <button onClick={() => copyToWhatsApp(order)} className="w-full bg-[#25D366]/20 text-[#25D366] py-3 rounded-xl font-bold text-xs flex justify-center items-center gap-2 border border-[#25D366]/50"><Copy className="w-4 h-4"/> WHATSAPP DO MOTOBOY</button>
-                          <button onClick={() => handleOrderStatus(order.id, 'entregue')} className="w-full bg-zinc-800 text-zinc-400 hover:text-white py-3 rounded-xl font-bold text-xs">MARCAR COMO CONCLUÍDO</button>
+                          <button onClick={() => handlePrint(order)} className="w-full bg-white hover:bg-zinc-200 text-black py-3.5 md:py-4 rounded-xl font-bold text-xs md:text-sm flex justify-center items-center gap-2 transition-colors"><Printer className="w-4 h-4 md:w-5 md:h-5"/> IMPRIMIR COMANDA</button>
+                          <button onClick={() => copyToWhatsApp(order)} className="w-full bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] py-3.5 md:py-4 rounded-xl font-bold text-xs md:text-sm flex justify-center items-center gap-2 border border-[#25D366]/50 transition-colors"><Copy className="w-4 h-4 md:w-5 md:h-5"/> ENVIAR PRO MOTOBOY (WHATSAPP)</button>
+                          <button onClick={() => handleOrderStatus(order.id, 'entregue')} className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white py-3.5 md:py-4 rounded-xl font-bold text-xs md:text-sm transition-colors mt-2">MARCAR COMO CONCLUÍDO</button>
                         </>
                       )}
                     </div>
@@ -356,28 +357,28 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'reports' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="space-y-6 animate-fade-in max-w-5xl">
+              <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Calendar className="w-6 h-6" /></div>
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500"><Calendar className="w-6 h-6 md:w-8 md:h-8" /></div>
                   <div>
-                    <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data</p>
-                    <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="bg-transparent text-xl font-heading font-bold text-white outline-none mt-1" />
+                    <p className="text-sm md:text-base text-zinc-400 font-bold uppercase tracking-widest">Escolha a data</p>
+                    <input type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="bg-transparent text-xl md:text-2xl font-heading font-bold text-white outline-none mt-1" />
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="glass-card p-6 rounded-2xl border border-white/5">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Faturamento Dia</p>
-                  <p className="text-3xl font-heading font-black text-green-400">{formatBRL(totalRevenue)}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white/5 shadow-lg">
+                  <p className="text-xs md:text-sm text-zinc-500 uppercase font-bold tracking-widest mb-3">Faturamento Dia</p>
+                  <p className="text-3xl md:text-4xl font-heading font-black text-green-400">{formatBRL(totalRevenue)}</p>
                 </div>
-                <div className="glass-card p-6 rounded-2xl border border-white/5">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Ticket Médio</p>
-                  <p className="text-3xl font-heading font-black text-white">{formatBRL(ticketMedio)}</p>
+                <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white/5 shadow-lg">
+                  <p className="text-xs md:text-sm text-zinc-500 uppercase font-bold tracking-widest mb-3">Ticket Médio</p>
+                  <p className="text-3xl md:text-4xl font-heading font-black text-white">{formatBRL(ticketMedio)}</p>
                 </div>
-                <div className="glass-card p-6 rounded-2xl border border-white/5">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Marmitas Vendidas</p>
-                  <p className="text-3xl font-heading font-black text-white">{deliveredOrders.length}</p>
+                <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white/5 shadow-lg">
+                  <p className="text-xs md:text-sm text-zinc-500 uppercase font-bold tracking-widest mb-3">Marmitas Vendidas</p>
+                  <p className="text-3xl md:text-4xl font-heading font-black text-white">{deliveredOrders.length}</p>
                 </div>
               </div>
             </div>

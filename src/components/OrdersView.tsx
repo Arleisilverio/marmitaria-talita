@@ -36,7 +36,7 @@ export default function OrdersView() {
 
   if (!user) {
     return (
-      <div className="px-container pt-12 flex flex-col items-center justify-center text-center">
+      <div className="px-container pt-12 flex flex-col items-center justify-center text-center max-w-2xl mx-auto">
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -45,12 +45,12 @@ export default function OrdersView() {
           <Gift className="text-orange-500 w-12 h-12" />
         </motion.div>
         <h2 className="font-heading text-2xl font-bold text-white mb-3">Histórico e Prêmios</h2>
-        <p className="text-on-surface-variant text-sm max-w-[280px] mx-auto leading-relaxed mb-8">
+        <p className="text-on-surface-variant text-sm max-w-[320px] mx-auto leading-relaxed mb-8">
           Crie uma conta para acompanhar seus pedidos e participar do nosso programa de fidelidade: <b>a cada 10 marmitas, a 11ª é por nossa conta!</b> 🎁
         </p>
         <button 
           onClick={() => navigate('/login')}
-          className="w-full max-w-[280px] bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 transition-transform"
+          className="w-full max-w-[320px] bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 transition-transform"
         >
           FAZER LOGIN / CADASTRAR
         </button>
@@ -59,7 +59,7 @@ export default function OrdersView() {
   }
 
   return (
-    <div className="px-container pt-6 space-y-6 pb-24">
+    <div className="px-container pt-6 space-y-6 pb-24 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 border-b border-white/5 pb-6">
         <div className="w-16 h-16 bg-secondary/10 rounded-2xl flex items-center justify-center">
           <Package className="text-secondary w-8 h-8" />
@@ -70,14 +70,14 @@ export default function OrdersView() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {orders.length === 0 ? (
-          <div className="text-center py-12 glass-card rounded-2xl border border-white/5">
+          <div className="col-span-full text-center py-12 glass-card rounded-2xl border border-white/5">
             <p className="text-zinc-500 text-sm">Você ainda não realizou pedidos.</p>
           </div>
         ) : (
           orders.map((order) => (
-            <div key={order.id} className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden group">
+            <div key={order.id} className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <p className="font-sans text-xs text-zinc-500 font-mono mb-1">
