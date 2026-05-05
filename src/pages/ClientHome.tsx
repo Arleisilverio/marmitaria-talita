@@ -103,7 +103,7 @@ export default function ClientHome() {
             <button onClick={() => setActiveTab('orders')} className={cn("text-xs font-bold uppercase", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
             <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
             {isStoreAdmin && (
-              <button onClick={() => navigate('/admin')} className="text-xs font-bold uppercase text-orange-500 border border-orange-500/20 px-3 py-1 rounded-full flex items-center gap-1">
+              <button onClick={() => navigate('/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
                 <ShieldAlert size={14}/> ADMIN
               </button>
             )}
@@ -143,7 +143,7 @@ export default function ClientHome() {
                             onClick={() => setCurrentSlide(idx)}
                             className={cn(
                               "w-2 h-2 rounded-full transition-all duration-300",
-                              idx === currentSlide ? "w-6 bg-orange-500" : "bg-white/30 hover:bg-white/50"
+                              idx === currentSlide ? "w-6 bg-primary" : "bg-white/30 hover:bg-white/50"
                             )}
                           />
                         ))}
@@ -156,7 +156,7 @@ export default function ClientHome() {
               <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
                 <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative">
                   <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
-                  <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
+                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
                     Para Hoje
                   </div>
                 </motion.div>

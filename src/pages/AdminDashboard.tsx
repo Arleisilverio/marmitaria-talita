@@ -7,7 +7,7 @@ import {
   Utensils, Receipt, CheckCircle, Clock, Bike, 
   Plus, Trash2, LogOut, ArrowLeft, Ban, 
   Settings, Save, Coffee, Beef, X, DollarSign,
-  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar
+  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [storeSlug, setStoreSlug] = useState<string>('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
   
   // Modals state
   const [showDrinkModal, setShowDrinkModal] = useState(false);
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
   const checkAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return navigate('/login');
+    setUserEmail(user.email || '');
 
     const adminData = await api.checkAdminAccess(user.email!);
     if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
@@ -92,7 +94,8 @@ export default function AdminDashboard() {
   };
 
   const updatePrice = (size: 'p' | 'm' | 'g', value: string) => {
-    setMenu({ ...menu, prices: { ...menu.prices, [size]: value.replace(',', '.') } });
+    const cleaned = value.replace(/[^0-9,.]/g, '').replace(',', '.');
+    setMenu({ ...menu, prices: { ...menu.prices, [size]: cleaned } });
   };
 
   const addDrink = () => {
@@ -102,7 +105,9 @@ export default function AdminDashboard() {
   const handleAddDrinkSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newDrinkName && newDrinkPrice) {
-      const newDrink = { id: Date.now().toString(), name: newDrinkName, price: newDrinkPrice.replace(',', '.') };
+      // Clean price: remove R$, spaces, and handle comma
+      const cleanPrice = newDrinkPrice.replace(/[R$\s]/g, '').replace(',', '.');
+      const newDrink = { id: Date.now().toString(), name: newDrinkName, price: parseFloat(cleanPrice) || 0 };
       setMenu({ ...menu, drinks: [...(menu.drinks || []), newDrink] });
       setShowDrinkModal(false);
       setNewDrinkName('');
@@ -177,7 +182,9 @@ export default function AdminDashboard() {
   // Reports Logic
   const reportOrders = orders.filter(o => {
     try {
-      return isSameDay(new Date(o.created_at), new Date(reportDate + 'T12:00:00'));
+      // Ensure we compare dates correctly by stripping time from created_at
+      const orderDate = format(new Date(o.created_at), 'yyyy-MM-dd');
+      return orderDate === reportDate;
     } catch {
       return false;
     }
@@ -219,6 +226,11 @@ export default function AdminDashboard() {
           >
             {menu.isOpen ? 'LOJA ABERTA' : 'FECHADA'}
           </button>
+          {userEmail === 'arleisilverio41@gmail.com' && (
+            <button onClick={() => navigate('/super-admin')} className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-colors border border-white/10 flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Super Admin
+            </button>
+          )}
           <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
             <LogOut className="w-5 h-5" />
           </button>
@@ -263,7 +275,7 @@ export default function AdminDashboard() {
                       </div>
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                        order.status === 'pendente' ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
+                        order.status === 'pendente' ? "bg-primary/10 text-primary border border-primary/20" :
                         order.status === 'confirmado' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
                         "bg-green-500/10 text-green-500 border border-green-500/20"
                       )}>{order.status}</span>
@@ -324,7 +336,7 @@ export default function AdminDashboard() {
                     <h3 className="font-heading text-xl font-bold text-white">Carrossel de Destaques (Topo)</h3>
                     <p className="text-zinc-500 text-sm mt-1">Adicione o cardápio da semana ou promoções que ficarão rodando no topo.</p>
                   </div>
-                  <button onClick={addSlide} className="bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
+                  <button onClick={addSlide} className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
                     <Plus className="w-4 h-4" /> ADICIONAR SLIDE
                   </button>
                 </div>
@@ -348,7 +360,7 @@ export default function AdminDashboard() {
                         <div className="flex justify-between gap-4">
                           <div className="flex-grow">
                             <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Título Principal (Ex: Segunda-Feira)</label>
-                            <input type="text" value={slide.title} onChange={e => updateSlide(slide.id, 'title', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm font-bold" />
+                             <input name="slide_title" autoComplete="off" type="text" value={slide.title} onChange={e => updateSlide(slide.id, 'title', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-primary text-sm font-bold" />
                           </div>
                           <button onClick={() => removeSlide(slide.id)} className="text-red-500 hover:bg-red-500/10 p-3 rounded-lg h-fit transition-colors mt-5">
                             <Trash2 className="w-5 h-5" />
@@ -356,7 +368,7 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Subtítulo / Prato (Ex: Feijoada Completa)</label>
-                          <input type="text" value={slide.description} onChange={e => updateSlide(slide.id, 'description', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm" />
+                           <input name="slide_description" autoComplete="off" type="text" value={slide.description} onChange={e => updateSlide(slide.id, 'description', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-primary text-sm" />
                         </div>
                       </div>
                     </div>
@@ -379,8 +391,8 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-                  <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato (Hoje)</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-orange-500 text-lg md:text-xl" /></div>
-                  <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-orange-500 text-base md:text-lg" rows={3} /></div>
+                   <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato (Hoje)</label><input name="menu_title" autoComplete="off" type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-primary text-lg md:text-xl" /></div>
+                   <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea name="menu_description" autoComplete="off" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-primary text-base md:text-lg" rows={3} /></div>
                 </div>
               </div>
 
@@ -394,7 +406,9 @@ export default function AdminDashboard() {
                         <label className="text-[10px] text-zinc-500 uppercase block mb-1">Tamanho {size.toUpperCase()}</label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 text-xs font-bold">R$</span>
-                          <input 
+                           <input 
+                            name={`price_${size}`}
+                            autoComplete="off"
                             type="text" 
                             value={menu.prices[size]} 
                             onChange={e => updatePrice(size as any, e.target.value)}
@@ -414,7 +428,6 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {menu.meats?.map((meat: any, idx: number) => {
-                      // FIX: Handle object or string
                       const meatName = typeof meat === 'object' ? meat.name : meat;
                       return (
                         <span key={idx} className="bg-zinc-800 text-zinc-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-3 border border-white/5 group">
@@ -461,12 +474,12 @@ export default function AdminDashboard() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Nome Público da Loja</label>
-                    <input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="store_name" autoComplete="off" type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                   
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Slogan / Frase de Impacto</label>
-                    <input type="text" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="store_description" autoComplete="off" type="text" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
 
                   <div className="space-y-4">
@@ -484,12 +497,12 @@ export default function AdminDashboard() {
 
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Taxa de Entrega (R$)</label>
-                    <input type="text" value={menu.deliveryFee} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} disabled={!menu.hasDelivery} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary disabled:opacity-50"/>
+                    <input name="delivery_fee" autoComplete="off" type="text" value={menu.deliveryFee} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} disabled={!menu.hasDelivery} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary disabled:opacity-50"/>
                   </div>
 
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Tempo de Preparo (Min)</label>
-                    <input type="number" value={menu.prepTime} onChange={e => setMenu({...menu, prepTime: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="prep_time" autoComplete="off" type="number" value={menu.prepTime} onChange={e => setMenu({...menu, prepTime: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                 </div>
 
@@ -521,6 +534,8 @@ export default function AdminDashboard() {
                   <div>
                     <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data do relatório</p>
                     <input 
+                      name="report_date"
+                      autoComplete="off"
                       type="date" 
                       value={reportDate} 
                       onChange={(e) => setReportDate(e.target.value)}
@@ -567,7 +582,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="text-left sm:text-right">
                           <p className="font-bold text-primary text-lg">{formatBRL(order.total_amount)}</p>
-                          <p className={`text-[10px] uppercase font-bold mt-1 inline-block px-2 py-0.5 rounded ${order.status === 'entregue' ? 'bg-green-500/10 text-green-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                          <p className={`text-[10px] uppercase font-bold mt-1 inline-block px-2 py-0.5 rounded ${order.status === 'entregue' ? 'bg-green-500/10 text-green-500' : 'bg-primary/10 text-primary'}`}>
                             {order.status}
                           </p>
                         </div>
@@ -593,11 +608,11 @@ export default function AdminDashboard() {
               <form onSubmit={handleAddDrinkSubmit} className="space-y-4">
                 <div>
                   <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome do Item</label>
-                  <input autoFocus type="text" value={newDrinkName} onChange={e => setNewDrinkName(e.target.value)} placeholder="Ex: Coca-Cola 2L" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                   <input name="new_drink_name" autoComplete="off" autoFocus type="text" value={newDrinkName} onChange={e => setNewDrinkName(e.target.value)} placeholder="Ex: Coca-Cola 2L" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
                 </div>
                 <div>
                   <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Preço (R$)</label>
-                  <input type="text" value={newDrinkPrice} onChange={e => setNewDrinkPrice(e.target.value)} placeholder="Ex: 12.00" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                   <input name="new_drink_price" autoComplete="off" type="text" value={newDrinkPrice} onChange={e => setNewDrinkPrice(e.target.value)} placeholder="Ex: 12.00" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
                 </div>
                 <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
               </form>
@@ -618,7 +633,7 @@ export default function AdminDashboard() {
               <form onSubmit={handleAddMeatSubmit} className="space-y-4">
                 <div>
                   <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome da Carne</label>
-                  <input autoFocus type="text" value={newMeatName} onChange={e => setNewMeatName(e.target.value)} placeholder="Ex: Bife a Cavalo" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                  <input name="new_meat_name" autoComplete="off" autoFocus type="text" value={newMeatName} onChange={e => setNewMeatName(e.target.value)} placeholder="Ex: Bife a Cavalo" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
                 </div>
                 <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
               </form>

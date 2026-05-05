@@ -121,7 +121,7 @@ export default function ProfileView() {
         <div className="text-center">
           <h2 className="font-heading text-2xl md:text-3xl font-bold text-white flex items-center justify-center gap-2">
             {profile.full_name || 'Usuário'}
-            {isAdmin && <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-orange-500" title="Administrador" />}
+            {isAdmin && <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-primary" title="Administrador" />}
           </h2>
           <p className="text-zinc-400 text-sm mt-1">{user.email}</p>
         </div>

@@ -6,6 +6,7 @@ import { CartProvider } from './contexts/CartContext';
 import ClientHome from './pages/ClientHome';
 import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Login from './pages/Login';
 
 export default function App() {
@@ -38,6 +39,10 @@ export default function App() {
           <Route 
             path="/admin" 
             element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/super-admin" 
+            element={session ? <SuperAdminDashboard /> : <Navigate to="/login" />} 
           />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
