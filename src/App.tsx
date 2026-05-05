@@ -6,7 +6,6 @@ import { CartProvider } from './contexts/CartContext';
 import ClientHome from './pages/ClientHome';
 import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Login from './pages/Login';
 
 export default function App() {
@@ -28,32 +27,18 @@ export default function App() {
 
   if (loading) return null;
 
-  const isSuperAdmin = session?.user?.email === 'arleisilverio41@gmail.com';
-
   return (
     <CartProvider>
       <Toaster position="top-center" reverseOrder={false} />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<ClientHome />} />
+          <Route path="/checkout" element={<ClientCheckout />} />
           <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-          
-          {/* Rota principal (pode ser uma lista de lojas ou redirecionar para a padrão) */}
-          <Route path="/" element={<Navigate to="/s/marmitaria-talita" />} />
-          
-          {/* ROTA DA LOJA DINÂMICA (Multi-tenant) */}
-          <Route path="/s/:slug" element={<ClientHome />} />
-          <Route path="/checkout/:slug" element={<ClientCheckout />} />
-          
-          <Route 
-            path="/super-admin" 
-            element={isSuperAdmin ? <SuperAdminDashboard /> : <Navigate to="/" />} 
-          />
-
           <Route 
             path="/admin" 
             element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
           />
-          
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
