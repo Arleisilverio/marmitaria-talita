@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   const handleMenuSave = async () => {
     try {
       await api.updateMenu(menu);
-      toast.success('Cardápio atualizado e publicado!');
+      toast.success('Cardápio e Taxas atualizados!');
     } catch (err) { toast.error('Erro ao salvar.'); }
   };
 
@@ -195,14 +195,29 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between">
-                <div>
-                  <p className="text-white font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/> Tempo de Preparo Padrão</p>
-                  <p className="text-xs text-zinc-500 mt-1">Define o cronômetro do painel de pedidos</p>
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Tempo de Preparo */}
+                <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+                  <div className="mb-4">
+                    <p className="text-white font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/> Tempo de Preparo</p>
+                    <p className="text-xs text-zinc-500 mt-1">Define o cronômetro do painel</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-24 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl" />
+                    <span className="text-zinc-500 text-sm font-bold uppercase">Minutos</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-20 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl" />
-                  <span className="text-zinc-500 text-sm font-bold uppercase">Min</span>
+
+                {/* Taxa de Entrega */}
+                <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+                  <div className="mb-4">
+                    <p className="text-white font-bold flex items-center gap-2"><Bike className="w-4 h-4 text-blue-400"/> Taxa de Entrega Padrão</p>
+                    <p className="text-xs text-zinc-500 mt-1">Valor cobrado no delivery</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-500 font-bold">R$</span>
+                    <input type="number" step="0.50" value={menu.deliveryFee !== undefined ? menu.deliveryFee : 5.00} onChange={e => setMenu({...menu, deliveryFee: parseFloat(e.target.value) || 0})} className="w-32 bg-zinc-900 border border-white/10 p-3 rounded-xl text-white outline-none text-center font-bold text-xl focus:border-orange-500" />
+                  </div>
                 </div>
               </div>
 

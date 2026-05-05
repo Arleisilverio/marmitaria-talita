@@ -52,7 +52,9 @@ export default function ClientCheckout() {
     });
   }, []);
 
-  const deliveryFee = deliveryType === 'entrega' ? 5.00 : 0;
+  // AGORA BUSCAMOS O VALOR CONFIGURADO PELO ADMIN (DEFAULT: 5)
+  const deliveryFeeAmount = menuConfig?.deliveryFee !== undefined ? Number(menuConfig.deliveryFee) : 5.00;
+  const deliveryFee = deliveryType === 'entrega' ? deliveryFeeAmount : 0;
   const finalTotal = total + (items.length > 0 ? deliveryFee : 0);
 
   const handlePreSubmit = async () => {
