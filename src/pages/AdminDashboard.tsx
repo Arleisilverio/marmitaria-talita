@@ -5,7 +5,7 @@ import { formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { 
   Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
-  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2, LogOut, ArrowLeft
+  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -19,16 +19,47 @@ export default function AdminDashboard() {
   const [printingOrder, setPrintingOrder] = useState<any>(null);
   const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [now, setNow] = useState(Date.now());
+  
+  // Controle de Acesso do Lojista
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
-    fetchData();
-    const orderInterval = setInterval(() => { if (activeTab === 'orders') fetchOrders(); }, 10000);
+    checkAccessAndFetchData();
+    const orderInterval = setInterval(() => { if (activeTab === 'orders' && !isBlocked) fetchOrders(); }, 10000);
     const clockInterval = setInterval(() => { setNow(Date.now()); }, 1000);
     return () => { clearInterval(orderInterval); clearInterval(clockInterval); };
-  }, [activeTab]);
+  }, [activeTab, isBlocked]);
 
-  const fetchData = async () => {
+  const checkAccessAndFetchData = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    // Se NÃO for o Super Admin, checa se ele é um Lojista Autorizado
+    if (user.email !== 'arleisilverio41@gmail.com') {
+      try {
+        const adminData = await api.checkAdminAccess(user.email || '');
+        if (!adminData) {
+          toast.error("Você não tem acesso a este painel.");
+          navigate('/');
+          return;
+        }
+        if (adminData.status === 'blocked') {
+          setIsBlocked(true);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        // Fallback em caso de erro no banco
+        navigate('/');
+        return;
+      }
+    }
+
     await Promise.all([
       api.getMenu().then(data => {
         if (!data.slides) data.slides = [];
@@ -53,7 +84,6 @@ export default function AdminDashboard() {
   const addSlide = () => setMenu({ ...menu, slides: [...(menu.slides || []), { id: 's' + Date.now(), image: '', title: '', description: '' }] });
   const updateSlide = (id: string, field: string, value: any) => setMenu({ ...menu, slides: menu.slides.map((s: any) => s.id === id ? { ...s, [field]: value } : s) });
   const removeSlide = (id: string) => setMenu({ ...menu, slides: menu.slides.filter((s: any) => s.id !== id) });
-  
   const handleSlideImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -99,7 +129,28 @@ export default function AdminDashboard() {
     toast.success('Você saiu da conta.');
   };
 
-  if (loading && !menu) return <div className="p-8 text-white flex justify-center mt-20">Carregando painel da cozinha...</div>;
+  if (loading && !menu && !isBlocked) return <div className="p-8 text-white flex justify-center mt-20">Carregando painel da cozinha...</div>;
+
+  // TELA DE BLOQUEIO DO LOJISTA (Falta de Pagamento)
+  if (isBlocked) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-zinc-900 border border-red-500/30 p-8 rounded-3xl text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Ban className="w-10 h-10 text-red-500" />
+          </div>
+          <h1 className="font-heading text-2xl font-black text-white mb-3">Acesso Suspenso</h1>
+          <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+            Sua assinatura do aplicativo encontra-se temporariamente bloqueada. Sua loja também foi fechada no aplicativo dos clientes. Por favor, entre em contato com o suporte para regularizar a situação.
+          </p>
+          <button onClick={handleLogout} className="w-full bg-zinc-800 text-white font-bold py-4 rounded-xl hover:bg-zinc-700 transition-colors">
+            SAIR DA CONTA
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
   const reportOrders = orders.filter(o => isSameDay(new Date(o.created_at), parseISO(reportDate)));
@@ -189,7 +240,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex flex-col items-center bg-zinc-900/50 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl px-4 py-1.5 md:py-2 transition-colors ml-1">
-                <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Admin</span>
+                <span className="text-[9px] md:text-[10px] font-mono text-zinc-500 uppercase font-bold mb-0.5">Sair</span>
                 <button 
                   onClick={handleLogout}
                   className="flex items-center gap-1.5 text-xs md:text-sm font-bold uppercase transition-all text-red-500 hover:text-red-400"
@@ -251,7 +302,6 @@ export default function AdminDashboard() {
                   
                   {menu.slides?.map((slide: any, index: number) => (
                     <div key={slide.id} className="bg-zinc-900/50 border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-6">
-                      {/* Upload Foto do Slide */}
                       <div className="relative w-full md:w-48 h-32 bg-zinc-800 rounded-xl overflow-hidden group flex-shrink-0 border border-white/5">
                         {slide.image ? <img src={slide.image} alt="Slide" className="w-full h-full object-cover opacity-80" /> : <ImageIcon className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-zinc-600" />}
                         <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity text-white text-xs font-bold gap-1">
@@ -259,12 +309,10 @@ export default function AdminDashboard() {
                           <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSlideImageUpload(slide.id, e)} />
                         </label>
                       </div>
-
-                      {/* Textos do Slide */}
                       <div className="flex-grow space-y-4">
                         <div className="flex justify-between gap-4">
                           <div className="flex-grow">
-                            <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Título Principal (Ex: Segunda-Feira)</label>
+                            <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Título Principal</label>
                             <input type="text" value={slide.title} onChange={e => updateSlide(slide.id, 'title', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm font-bold" />
                           </div>
                           <button onClick={() => removeSlide(slide.id)} className="text-red-500 hover:bg-red-500/10 p-3 rounded-lg h-fit transition-colors mt-5">
@@ -272,7 +320,7 @@ export default function AdminDashboard() {
                           </button>
                         </div>
                         <div>
-                          <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Subtítulo / Prato (Ex: Feijoada Completa)</label>
+                          <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Subtítulo / Prato</label>
                           <input type="text" value={slide.description} onChange={e => updateSlide(slide.id, 'description', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm" />
                         </div>
                       </div>
@@ -285,7 +333,6 @@ export default function AdminDashboard() {
                 <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col justify-between">
                   <div className="mb-4">
                     <p className="text-white font-bold md:text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-orange-500"/> Tempo de Preparo</p>
-                    <p className="text-xs md:text-sm text-zinc-500 mt-1">Define o cronômetro do painel</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <input type="number" value={menu.prepTime || 40} onChange={e => setMenu({...menu, prepTime: Number(e.target.value)})} className="w-24 md:w-32 bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none text-center font-bold text-xl md:text-2xl" />
@@ -296,7 +343,6 @@ export default function AdminDashboard() {
                 <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col justify-between">
                   <div className="mb-4">
                     <p className="text-white font-bold md:text-lg flex items-center gap-2"><Bike className="w-5 h-5 text-blue-400"/> Taxa de Entrega Padrão</p>
-                    <p className="text-xs md:text-sm text-zinc-500 mt-1">Valor cobrado no delivery</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-zinc-500 font-bold md:text-lg">R$</span>
@@ -473,13 +519,6 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
-
-      <nav className="bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe md:hidden">
-        <button onClick={() => navigate('/', { state: { tab: 'menu' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><Utensils className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span></button>
-        <button onClick={() => navigate('/', { state: { tab: 'orders' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><Receipt className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span></button>
-        <button onClick={() => navigate('/', { state: { tab: 'profile' } })} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-primary/50"><User className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span></button>
-        <button className="flex flex-col items-center justify-center transition-all text-orange-500"><ShieldAlert className="w-6 h-6 mb-1 text-orange-500" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500">Painel</span></button>
-      </nav>
     </div>
   );
 }

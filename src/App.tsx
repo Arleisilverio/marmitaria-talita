@@ -6,6 +6,7 @@ import { CartProvider } from './contexts/CartContext';
 import ClientHome from './pages/ClientHome';
 import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Login from './pages/Login';
 
 export default function App() {
@@ -27,29 +28,29 @@ export default function App() {
 
   if (loading) return null;
 
-  const isAdmin = session?.user?.email === 'arleisilverio41@gmail.com';
+  // arleisilverio41@gmail.com é o Criador do App (Super Admin)
+  const isSuperAdmin = session?.user?.email === 'arleisilverio41@gmail.com';
 
   return (
     <CartProvider>
       <Toaster position="top-center" reverseOrder={false} />
       <BrowserRouter>
         <Routes>
-          {/* REGRA CORRIGIDA: Se logar como Admin, vai para /admin. Se for Cliente, vai para / */}
-          <Route 
-            path="/login" 
-            element={
-              !session 
-                ? <Login /> 
-                : (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/" />)
-            } 
-          />
+          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
           
           <Route path="/" element={<ClientHome />} />
           <Route path="/checkout" element={<ClientCheckout />} />
           
+          {/* Rota exclusiva do Criador do SaaS */}
+          <Route 
+            path="/super-admin" 
+            element={isSuperAdmin ? <SuperAdminDashboard /> : <Navigate to="/" />} 
+          />
+
+          {/* Rota do Dono do Comércio (Lojista Autorizado) ou Super Admin */}
           <Route 
             path="/admin" 
-            element={isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
+            element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
           />
           
           <Route path="*" element={<Navigate to="/" />} />

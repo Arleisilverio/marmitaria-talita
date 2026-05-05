@@ -2,7 +2,6 @@ import { supabase } from '../integrations/supabase/client';
 
 export const api = {
   getMenu: async () => {
-    // Agora busca direto do banco de dados seguro
     const { data, error } = await supabase
       .from('store_settings')
       .select('menu_data')
@@ -11,7 +10,6 @@ export const api = {
       
     if (error || !data) {
       console.warn("Cardápio ainda não configurado no banco de dados.");
-      // Retorna um fallback vazio enquanto a tabela não é criada
       return { 
         isOpen: false, isDeliveryOpen: false, prepTime: 40, deliveryFee: 5,
         title: "Atualizando Sistema...", description: "", image: "",
@@ -22,7 +20,6 @@ export const api = {
   },
   
   updateMenu: async (menuData: any) => {
-    // Atualiza de forma segura. O Supabase (RLS) vai barrar automaticamente se não for o Admin!
     const { data, error } = await supabase
       .from('store_settings')
       .update({ menu_data: menuData, updated_at: new Date().toISOString() })
@@ -32,7 +29,7 @@ export const api = {
       
     if (error) {
       console.error("Erro do Supabase:", error);
-      throw new Error("Não autorizado a alterar o cardápio. Você precisa ser administrador.");
+      throw new Error("Não autorizado a alterar o cardápio.");
     }
     return data.menu_data;
   },
@@ -63,6 +60,41 @@ export const api = {
       throw error;
     }
     return data;
+  },
+
+  // ---- FUNÇÕES DO SAAS (SUPER ADMIN) ---- //
+  checkAdminAccess: async (email: string) => {
+    const { data } = await supabase
+      .from('app_admins')
+      .select('*')
+      .eq('email', email)
+      .single();
+    return data;
+  },
+
+  getAppAdmins: async () => {
+    const { data } = await supabase
+      .from('app_admins')
+      .select('*')
+      .order('created_at', { ascending: false });
+    return data || [];
+  },
+
+  addAppAdmin: async (email: string, storeName: string) => {
+    const { error } = await supabase
+      .from('app_admins')
+      .insert({ email, store_name: storeName });
+    if (error) throw new Error("Erro ao cadastrar lojista. E-mail pode já estar em uso.");
+  },
+
+  toggleAppAdminStatus: async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
+    const { error } = await supabase
+      .from('app_admins')
+      .update({ status: newStatus })
+      .eq('id', id);
+    if (error) throw new Error("Erro ao alterar status do lojista.");
+    return newStatus;
   },
 
   processAI: async (message: string, context: any) => {

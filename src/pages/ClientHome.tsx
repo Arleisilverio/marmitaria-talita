@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store, Crown } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -22,15 +22,25 @@ export default function ClientHome() {
   const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
-  const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isStoreAdmin, setIsStoreAdmin] = useState(false);
   
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => { if (location.state?.tab) setActiveTab(location.state.tab); }, [location]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email === 'arleisilverio41@gmail.com') setIsAdmin(true);
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user?.email === 'arleisilverio41@gmail.com') {
+        setIsSuperAdmin(true);
+        setIsStoreAdmin(true);
+      } else if (data.user?.email) {
+        try {
+          const access = await api.checkAdminAccess(data.user.email);
+          if (access && access.status === 'active') setIsStoreAdmin(true);
+        } catch(e) {}
+      }
     });
     const fetchMenu = () => api.getMenu().then(data => { setMenu(data); setLoading(false); });
     fetchMenu();
@@ -75,11 +85,9 @@ export default function ClientHome() {
 
   return (
     <div className="min-h-screen pb-32 md:pb-12 bg-background selection:bg-primary/20">
-      {/* CABEÇALHO RESPONSIVO */}
       <header className="bg-surface/80 backdrop-blur-xl docked full-width top-0 sticky z-50 border-b border-white/5 px-4 md:px-8 py-3 w-full">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            {/* Botão de voltar agora aparece em Perfil/Pedidos tanto no mobile quanto no desktop */}
             {activeTab !== 'menu' && (
               <button onClick={() => setActiveTab('menu')} className="text-secondary hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/5">
                 <ArrowLeft className="w-6 h-6" />
@@ -89,7 +97,6 @@ export default function ClientHome() {
             <h1 className="font-heading text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary via-tertiary to-secondary hidden sm:block">
               MARMITARIA TALITA
             </h1>
-            {/* Texto curto para mobile quando a seta está visível */}
             <h1 className="font-heading text-lg font-black text-white sm:hidden block ml-1">
               {activeTab === 'orders' ? 'MEUS PEDIDOS' : activeTab === 'profile' ? 'MEU PERFIL' : 'MARMITARIA'}
             </h1>
@@ -99,7 +106,12 @@ export default function ClientHome() {
             <button onClick={() => setActiveTab('menu')} className={cn("text-sm font-bold uppercase tracking-widest transition-colors hover:text-primary", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>Cardápio</button>
             <button onClick={() => setActiveTab('orders')} className={cn("text-sm font-bold uppercase tracking-widest transition-colors hover:text-primary", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
             <button onClick={() => setActiveTab('profile')} className={cn("text-sm font-bold uppercase tracking-widest transition-colors hover:text-primary", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
-            {isAdmin && <button onClick={() => navigate('/admin')} className="text-sm font-bold uppercase tracking-widest text-orange-500 hover:text-orange-400 transition-colors">Painel Admin</button>}
+            
+            {isSuperAdmin ? (
+              <button onClick={() => navigate('/super-admin')} className="text-sm font-bold uppercase tracking-widest text-yellow-500 hover:text-yellow-400 transition-colors flex items-center gap-1"><Crown className="w-4 h-4"/> Painel SaaS</button>
+            ) : isStoreAdmin ? (
+              <button onClick={() => navigate('/admin')} className="text-sm font-bold uppercase tracking-widest text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1"><ShieldAlert className="w-4 h-4"/> Painel Loja</button>
+            ) : null}
           </nav>
 
           <div className="flex items-center gap-3">
@@ -137,54 +149,28 @@ export default function ClientHome() {
 
               <div className={cn("transition-all duration-1000", !menu.isOpen && "opacity-50 grayscale pointer-events-none")}>
                 
-                {/* CARROSSEL DE DESTAQUES */}
                 <motion.section variants={itemVariants} className="px-container mt-4">
                   <div className="relative h-56 md:h-80 w-full rounded-2xl md:rounded-3xl overflow-hidden glass-card shadow-2xl bg-zinc-900 border border-white/5">
                     <AnimatePresence mode="wait">
-                      <motion.div
-                        key={currentSlide}
-                        initial={{ opacity: 0, scale: 1.05 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.8 }}
-                        className="absolute inset-0"
-                      >
-                        <img 
-                          alt={activeSlides[currentSlide].title} 
-                          className="w-full h-full object-cover opacity-60" 
-                          src={activeSlides[currentSlide].image} 
-                        />
+                      <motion.div key={currentSlide} initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.8 }} className="absolute inset-0">
+                        <img alt={activeSlides[currentSlide].title} className="w-full h-full object-cover opacity-60" src={activeSlides[currentSlide].image} />
                         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
                         <div className="absolute bottom-8 left-6 md:bottom-12 md:left-10 max-w-lg">
-                          <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-                            {activeSlides[currentSlide].title}
-                          </h2>
-                          <p className="text-secondary font-mono text-sm md:text-lg">
-                            {activeSlides[currentSlide].description}
-                          </p>
+                          <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">{activeSlides[currentSlide].title}</h2>
+                          <p className="text-secondary font-mono text-sm md:text-lg">{activeSlides[currentSlide].description}</p>
                         </div>
                       </motion.div>
                     </AnimatePresence>
-
-                    {/* Navegação do Carrossel (Dots) */}
                     {activeSlides.length > 1 && (
                       <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
                         {activeSlides.map((_: any, idx: number) => (
-                          <button
-                            key={idx}
-                            onClick={() => setCurrentSlide(idx)}
-                            className={cn(
-                              "w-2 h-2 rounded-full transition-all duration-300",
-                              idx === currentSlide ? "w-6 bg-orange-500" : "bg-white/30 hover:bg-white/50"
-                            )}
-                          />
+                          <button key={idx} onClick={() => setCurrentSlide(idx)} className={cn("w-2 h-2 rounded-full transition-all duration-300", idx === currentSlide ? "w-6 bg-orange-500" : "bg-white/30 hover:bg-white/50")} />
                         ))}
                       </div>
                     )}
                   </div>
                 </motion.section>
 
-                {/* MARMITA PRINCIPAL */}
                 <section className="px-container mt-8">
                   <motion.div variants={itemVariants} className="glass-card rounded-2xl md:rounded-3xl overflow-hidden mb-4 shadow-xl border border-white/5 md:grid md:grid-cols-2">
                     <div className="relative h-64 md:h-full min-h-[300px]">
@@ -192,9 +178,7 @@ export default function ClientHome() {
                       <div className="absolute top-4 right-4 glass-card px-3 py-1.5 rounded-xl border-white/10 shadow-lg">
                         <span className="text-tertiary font-heading font-bold text-xl">{formatBRL(menu.prices.p)}</span>
                       </div>
-                      <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
-                        Para Hoje
-                      </div>
+                      <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">Para Hoje</div>
                     </div>
                     <div className="p-6 md:p-10 flex flex-col justify-center">
                       <h4 className="font-heading text-2xl md:text-4xl font-bold text-white mb-4">{menu.title}</h4>
@@ -218,7 +202,6 @@ export default function ClientHome() {
                   </motion.div>
                 </section>
 
-                {/* BEBIDAS */}
                 <section className="px-container mt-12">
                   <motion.h3 variants={itemVariants} className="font-heading text-2xl md:text-3xl font-bold text-on-surface mb-6">Bebidas & Extras</motion.h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -249,7 +232,6 @@ export default function ClientHome() {
 
       <AIChat menuContext={menu} />
 
-      {/* BOTÃO FLUTUANTE DE CARRINHO */}
       <AnimatePresence>
         {items.length > 0 && activeTab === 'menu' && menu.isOpen && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 md:bottom-8 left-0 right-0 px-container z-40 md:flex md:justify-center">
@@ -264,12 +246,16 @@ export default function ClientHome() {
         )}
       </AnimatePresence>
 
-      {/* NAVEGAÇÃO MOBILE */}
       <nav className="md:hidden bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe">
         <button onClick={() => setActiveTab('menu')} className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'menu' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}><Utensils className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span></button>
         <button onClick={() => setActiveTab('orders')} className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'orders' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}><Receipt className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span></button>
         <button onClick={() => setActiveTab('profile')} className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'profile' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}><User className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Perfil</span></button>
-        {isAdmin && <button onClick={() => navigate('/admin')} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-orange-500"><ShieldAlert className="w-6 h-6 mb-1 text-orange-500/80" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Painel</span></button>}
+        
+        {isSuperAdmin ? (
+          <button onClick={() => navigate('/super-admin')} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-yellow-500"><Crown className="w-6 h-6 mb-1 text-yellow-500" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest text-yellow-500">SaaS</span></button>
+        ) : isStoreAdmin ? (
+          <button onClick={() => navigate('/admin')} className="flex flex-col items-center justify-center transition-all text-on-surface-variant/40 hover:text-orange-500"><ShieldAlert className="w-6 h-6 mb-1 text-orange-500/80" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest text-orange-500/80">Painel</span></button>
+        ) : null}
       </nav>
     </div>
   );

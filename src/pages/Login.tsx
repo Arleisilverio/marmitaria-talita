@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
+import { api } from '../lib/api';
 import { Leaf, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { toast } from 'react-hot-toast';
@@ -33,11 +34,19 @@ export default function Login() {
         toast.success("Conta criada com sucesso! 🎉");
       }
       
-      // REDIRECIONAMENTO INTELIGENTE
+      // REDIRECIONAMENTO INTELIGENTE SAAS
       if (email === 'arleisilverio41@gmail.com') {
-        navigate('/admin');
+        // É o Criador do App
+        navigate('/super-admin');
       } else {
-        navigate('/');
+        // Verifica se é dono de algum comércio
+        const adminData = await api.checkAdminAccess(email);
+        if (adminData) {
+          navigate('/admin');
+        } else {
+          // É apenas um cliente final
+          navigate('/');
+        }
       }
       
     } catch (err: any) {
