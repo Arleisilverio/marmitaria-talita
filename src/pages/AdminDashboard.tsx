@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { formatBRL } from '../lib/utils';
 import { 
   Utensils, Receipt, BarChart3, CheckCircle, Printer, Copy, 
-  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike
+  Camera, Save, Image as ImageIcon, Calendar, User, ShieldAlert, Store, Clock, AlertTriangle, Bike, Plus, Trash2
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -29,7 +29,11 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     await Promise.all([
-      api.getMenu().then(setMenu),
+      api.getMenu().then(data => {
+        // Garante que a propriedade slides exista
+        if (!data.slides) data.slides = [];
+        setMenu(data);
+      }),
       fetchOrders()
     ]);
     setLoading(false);
@@ -42,6 +46,20 @@ export default function AdminDashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => setMenu({ ...menu, image: reader.result as string });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Gerenciamento de Slides
+  const addSlide = () => setMenu({ ...menu, slides: [...(menu.slides || []), { id: 's' + Date.now(), image: '', title: '', description: '' }] });
+  const updateSlide = (id: string, field: string, value: any) => setMenu({ ...menu, slides: menu.slides.map((s: any) => s.id === id ? { ...s, [field]: value } : s) });
+  const removeSlide = (id: string) => setMenu({ ...menu, slides: menu.slides.filter((s: any) => s.id !== id) });
+  
+  const handleSlideImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => updateSlide(id, 'image', reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -198,6 +216,53 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              {/* GESTÃO DE SLIDES / CARROSSEL */}
+              <div className="glass-card p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <div>
+                    <h3 className="font-heading text-xl font-bold text-white">Carrossel de Destaques (Topo)</h3>
+                    <p className="text-zinc-500 text-sm mt-1">Adicione o cardápio da semana ou promoções que ficarão rodando no topo.</p>
+                  </div>
+                  <button onClick={addSlide} className="bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
+                    <Plus className="w-4 h-4" /> ADICIONAR SLIDE
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {menu.slides?.length === 0 && <p className="text-zinc-500 text-center py-4">Nenhum slide configurado. A imagem do Prato Principal será mostrada por padrão.</p>}
+                  
+                  {menu.slides?.map((slide: any, index: number) => (
+                    <div key={slide.id} className="bg-zinc-900/50 border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-6">
+                      {/* Upload Foto do Slide */}
+                      <div className="relative w-full md:w-48 h-32 bg-zinc-800 rounded-xl overflow-hidden group flex-shrink-0 border border-white/5">
+                        {slide.image ? <img src={slide.image} alt="Slide" className="w-full h-full object-cover opacity-80" /> : <ImageIcon className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-zinc-600" />}
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity text-white text-xs font-bold gap-1">
+                          <Camera className="w-4 h-4" /> Trocar
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSlideImageUpload(slide.id, e)} />
+                        </label>
+                      </div>
+
+                      {/* Textos do Slide */}
+                      <div className="flex-grow space-y-4">
+                        <div className="flex justify-between gap-4">
+                          <div className="flex-grow">
+                            <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Título Principal (Ex: Segunda-Feira)</label>
+                            <input type="text" value={slide.title} onChange={e => updateSlide(slide.id, 'title', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm font-bold" />
+                          </div>
+                          <button onClick={() => removeSlide(slide.id)} className="text-red-500 hover:bg-red-500/10 p-3 rounded-lg h-fit transition-colors mt-5">
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Subtítulo / Prato (Ex: Feijoada Completa)</label>
+                          <input type="text" value={slide.description} onChange={e => updateSlide(slide.id, 'description', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-orange-500 text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 <div className="glass-card p-6 md:p-8 rounded-2xl border border-white/5 flex flex-col justify-between">
                   <div className="mb-4">
@@ -222,19 +287,24 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="relative h-64 md:h-80 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
-                {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 md:w-16 md:h-16 text-zinc-700" />}
-                <div className="absolute bottom-6 left-0 w-full flex justify-center">
-                  <label className="bg-white/90 hover:bg-white backdrop-blur-md text-black px-6 py-3 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-xl transition-colors">
-                    <Camera className="w-4 h-4 md:w-5 md:h-5" /> ALTERAR FOTO PRINCIPAL
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                  </label>
+              {/* FOTO E DADOS DO PRATO PRINCIPAL DO DIA */}
+              <div className="space-y-6 mt-8">
+                <h3 className="font-heading text-xl font-bold text-white border-b border-white/10 pb-2">Marmita do Dia (Para Venda Hoje)</h3>
+                
+                <div className="relative h-64 md:h-80 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
+                  {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 md:w-16 md:h-16 text-zinc-700" />}
+                  <div className="absolute bottom-6 left-0 w-full flex justify-center">
+                    <label className="bg-white/90 hover:bg-white backdrop-blur-md text-black px-6 py-3 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-xl transition-colors">
+                      <Camera className="w-4 h-4 md:w-5 md:h-5" /> ALTERAR FOTO DO PRATO
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-                 <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-orange-500 text-lg md:text-xl" /></div>
-                 <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-orange-500 text-base md:text-lg" rows={3} /></div>
+                <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+                  <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato (Hoje)</label><input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-orange-500 text-lg md:text-xl" /></div>
+                  <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-orange-500 text-base md:text-lg" rows={3} /></div>
+                </div>
               </div>
 
               <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-white/5">

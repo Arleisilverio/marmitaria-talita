@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ArrowLeft, ShieldAlert, Store, ChevronRight, ChevronLeft } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -23,6 +23,9 @@ export default function ClientHome() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Controle do Carrossel
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => { if (location.state?.tab) setActiveTab(location.state.tab); }, [location]);
 
@@ -36,6 +39,18 @@ export default function ClientHome() {
     return () => clearInterval(interval);
   }, []);
 
+  // Efeito para rodar o carrossel automaticamente
+  useEffect(() => {
+    const slideCount = menu?.slides?.length || 0;
+    if (slideCount <= 1 || activeTab !== 'menu') return;
+    
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slideCount);
+    }, 5000);
+    
+    return () => clearInterval(timer);
+  }, [menu?.slides, activeTab]);
+
   if (loading || !menu) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
@@ -43,6 +58,11 @@ export default function ClientHome() {
       </div>
     );
   }
+
+  // Define os slides a serem mostrados. Se não houver nenhum configurado no admin, cria um "falso" com a imagem do prato principal.
+  const activeSlides = menu.slides && menu.slides.length > 0 
+    ? menu.slides 
+    : [{ id: 'default', image: menu.image, title: 'Especial de Hoje', description: menu.title }];
 
   const handleAddDish = () => {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
@@ -69,7 +89,6 @@ export default function ClientHome() {
             </h1>
           </div>
 
-          {/* NAVEGAÇÃO DESKTOP (Escondida no Mobile) */}
           <nav className="hidden md:flex items-center gap-6">
             <button onClick={() => setActiveTab('menu')} className={cn("text-sm font-bold uppercase tracking-widest transition-colors hover:text-primary", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>Cardápio</button>
             <button onClick={() => setActiveTab('orders')} className={cn("text-sm font-bold uppercase tracking-widest transition-colors hover:text-primary", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
@@ -112,25 +131,63 @@ export default function ClientHome() {
 
               <div className={cn("transition-all duration-1000", !menu.isOpen && "opacity-50 grayscale pointer-events-none")}>
                 
-                {/* BANNER ESPECIAL */}
+                {/* CARROSSEL DE DESTAQUES */}
                 <motion.section variants={itemVariants} className="px-container mt-4">
-                  <div className="relative h-56 md:h-80 w-full rounded-2xl md:rounded-3xl overflow-hidden glass-card shadow-2xl">
-                    <motion.img initial={{ scale: 1.2 }} animate={{ scale: 1 }} transition={{ duration: 1.5 }} alt="Especial" className="w-full h-full object-cover opacity-60" src={menu.image} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
-                    <div className="absolute bottom-6 left-6 md:bottom-10 md:left-10">
-                      <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">Especial de Hoje</h2>
-                      <p className="text-secondary font-mono text-sm md:text-lg">{menu.title}</p>
-                    </div>
+                  <div className="relative h-56 md:h-80 w-full rounded-2xl md:rounded-3xl overflow-hidden glass-card shadow-2xl bg-zinc-900 border border-white/5">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentSlide}
+                        initial={{ opacity: 0, scale: 1.05 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="absolute inset-0"
+                      >
+                        <img 
+                          alt={activeSlides[currentSlide].title} 
+                          className="w-full h-full object-cover opacity-60" 
+                          src={activeSlides[currentSlide].image} 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+                        <div className="absolute bottom-8 left-6 md:bottom-12 md:left-10 max-w-lg">
+                          <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">
+                            {activeSlides[currentSlide].title}
+                          </h2>
+                          <p className="text-secondary font-mono text-sm md:text-lg">
+                            {activeSlides[currentSlide].description}
+                          </p>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+
+                    {/* Navegação do Carrossel (Dots) */}
+                    {activeSlides.length > 1 && (
+                      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
+                        {activeSlides.map((_: any, idx: number) => (
+                          <button
+                            key={idx}
+                            onClick={() => setCurrentSlide(idx)}
+                            className={cn(
+                              "w-2 h-2 rounded-full transition-all duration-300",
+                              idx === currentSlide ? "w-6 bg-orange-500" : "bg-white/30 hover:bg-white/50"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </motion.section>
 
-                {/* MARMITA PRINCIPAL (Grid no Desktop) */}
+                {/* MARMITA PRINCIPAL */}
                 <section className="px-container mt-8">
                   <motion.div variants={itemVariants} className="glass-card rounded-2xl md:rounded-3xl overflow-hidden mb-4 shadow-xl border border-white/5 md:grid md:grid-cols-2">
                     <div className="relative h-64 md:h-full min-h-[300px]">
                       <img alt="Main Dish" className="absolute inset-0 w-full h-full object-cover" src={menu.image} />
                       <div className="absolute top-4 right-4 glass-card px-3 py-1.5 rounded-xl border-white/10 shadow-lg">
                         <span className="text-tertiary font-heading font-bold text-xl">{formatBRL(menu.prices.p)}</span>
+                      </div>
+                      <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
+                        Para Hoje
                       </div>
                     </div>
                     <div className="p-6 md:p-10 flex flex-col justify-center">
@@ -155,7 +212,7 @@ export default function ClientHome() {
                   </motion.div>
                 </section>
 
-                {/* BEBIDAS (Grid no Desktop) */}
+                {/* BEBIDAS */}
                 <section className="px-container mt-12">
                   <motion.h3 variants={itemVariants} className="font-heading text-2xl md:text-3xl font-bold text-on-surface mb-6">Bebidas & Extras</motion.h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -186,7 +243,7 @@ export default function ClientHome() {
 
       <AIChat menuContext={menu} />
 
-      {/* BOTÃO FLUTUANTE DE CARRINHO (Ajustado para Desktop) */}
+      {/* BOTÃO FLUTUANTE DE CARRINHO */}
       <AnimatePresence>
         {items.length > 0 && activeTab === 'menu' && menu.isOpen && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 md:bottom-8 left-0 right-0 px-container z-40 md:flex md:justify-center">
@@ -201,7 +258,7 @@ export default function ClientHome() {
         )}
       </AnimatePresence>
 
-      {/* NAVEGAÇÃO MOBILE (Escondida no Desktop) */}
+      {/* NAVEGAÇÃO MOBILE */}
       <nav className="md:hidden bg-surface/90 backdrop-blur-2xl fixed bottom-0 w-full z-50 rounded-t-3xl border-t border-white/5 shadow-2xl flex justify-around items-center h-20 pb-safe">
         <button onClick={() => setActiveTab('menu')} className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'menu' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}><Utensils className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Cardápio</span></button>
         <button onClick={() => setActiveTab('orders')} className={cn("flex flex-col items-center justify-center transition-all", activeTab === 'orders' ? "text-primary" : "text-on-surface-variant/40 hover:text-primary/50")}><Receipt className="w-6 h-6 mb-1" /><span className="font-heading text-[10px] font-bold uppercase tracking-widest">Pedidos</span></button>
