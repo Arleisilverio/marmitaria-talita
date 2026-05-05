@@ -12,6 +12,8 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-1002264660946";
 // Menu continua aqui por enquanto (como cache super rápido). Pedidos não!
 let db = {
   menu: {
+    isOpen: true,
+    prepTime: 40,
     title: "Feijoada Completa da Chef",
     description: "Feijoada preparada com carnes nobres, acompanhada de arroz soltinho, couve refogada no alho, farofa crocante e fatias de laranja fresca.",
     image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDio-CUjwbSHdtOpW2bJC5EbmkzcWYUVNO7tDX8q2xdFGzHiRYmvEnoV_asFWu0ZXviDJExABlfSUHh1wKJUrmbuPooLzVml6_Hixxmv4ug27sUwUiKYkpe2UkL8fI_hw6bD3m75gnDUpv67q461h1Q0KAQlm80t0LUSbhMWVvxiW6ow4FlyMzfcAzYz5UIhwRG4AvHhm6LuOBLB4TSYjcUwy3oW_ypBdhpZROCLCem9V_24gSB1z6gFGWIh5N_kszEH5kvFt0c81Y",
@@ -40,7 +42,6 @@ async function startServer() {
     res.json(db.menu);
   });
 
-  // Gatilho exclusivo para o Bot do Telegram! (O Supabase já salvou o pedido)
   app.post("/api/orders", async (req, res) => {
     const newOrder = req.body;
 
