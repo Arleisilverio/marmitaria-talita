@@ -13,13 +13,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Pegar sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
-    // Escutar mudanças na auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -38,8 +36,9 @@ export default function App() {
         <Routes>
           <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
           
-          <Route path="/" element={session ? <ClientHome /> : <Navigate to="/login" />} />
-          <Route path="/checkout" element={session ? <ClientCheckout /> : <Navigate to="/login" />} />
+          {/* Home e Checkout agora são públicos */}
+          <Route path="/" element={<ClientHome />} />
+          <Route path="/checkout" element={<ClientCheckout />} />
           
           <Route 
             path="/admin" 
