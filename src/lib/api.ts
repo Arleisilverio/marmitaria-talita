@@ -1,30 +1,42 @@
 import { supabase } from '../integrations/supabase/client';
 
-const API_BASE = '/api';
-
-// Senha sincronizada com o backend (Band-aid de segurança temporário)
-const ADMIN_SECRET = "talita_admin_secreto_2024"; 
-
 export const api = {
   getMenu: async () => {
-    const res = await fetch(`${API_BASE}/menu`);
-    return res.json();
-  },
-  updateMenu: async (data: any) => {
-    const res = await fetch(`${API_BASE}/menu`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-admin-secret': ADMIN_SECRET // Enviando a chave para abrir a "fechadura" do servidor
-      },
-      body: JSON.stringify(data)
-    });
-    
-    if (!res.ok) {
-      throw new Error("Não autorizado a alterar o cardápio.");
+    // Agora busca direto do banco de dados seguro
+    const { data, error } = await supabase
+      .from('store_settings')
+      .select('menu_data')
+      .eq('id', 1)
+      .single();
+      
+    if (error || !data) {
+      console.warn("Cardápio ainda não configurado no banco de dados.");
+      // Retorna um fallback vazio enquanto a tabela não é criada
+      return { 
+        isOpen: false, isDeliveryOpen: false, prepTime: 40, deliveryFee: 5,
+        title: "Atualizando Sistema...", description: "", image: "",
+        prices: { p: 0, m: 0, g: 0 }, meats: [], drinks: [] 
+      };
     }
-    return res.json();
+    return data.menu_data;
   },
+  
+  updateMenu: async (menuData: any) => {
+    // Atualiza de forma segura. O Supabase (RLS) vai barrar automaticamente se não for o Admin!
+    const { data, error } = await supabase
+      .from('store_settings')
+      .update({ menu_data: menuData, updated_at: new Date().toISOString() })
+      .eq('id', 1)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Erro do Supabase:", error);
+      throw new Error("Não autorizado a alterar o cardápio. Você precisa ser administrador.");
+    }
+    return data.menu_data;
+  },
+
   getOrders: async () => {
     const { data, error } = await supabase
       .from('orders')
@@ -37,6 +49,7 @@ export const api = {
     }
     return data;
   },
+
   updateOrderStatus: async (id: string, status: string) => {
     const { data, error } = await supabase
       .from('orders')
@@ -51,6 +64,7 @@ export const api = {
     }
     return data;
   },
+
   processAI: async (message: string, context: any) => {
     const res = await fetch(`https://kigindzghkbkwgzljrdz.supabase.co/functions/v1/ai-process`, {
       method: 'POST',
