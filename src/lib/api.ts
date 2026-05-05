@@ -23,12 +23,13 @@ export const api = {
   updateMenu: async (slug: string, menuData: any) => {
     const { data, error } = await supabase
       .from('store_settings')
-      .upsert({ store_slug: slug, menu_data: menuData, updated_at: new Date().toISOString() }, { onConflict: 'store_slug' })
+      .update({ menu_data: menuData, updated_at: new Date().toISOString() })
+      .eq('store_slug', slug)
       .select()
       .single();
       
     if (error) {
-      console.error("Supabase upsert error:", error);
+      console.error("Supabase update error:", error);
       throw new Error(error.message || "Erro ao salvar configurações da loja.");
     }
     return data.menu_data;
