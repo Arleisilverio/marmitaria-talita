@@ -8,7 +8,7 @@ export const api = {
       .from('store_settings')
       .select('menu_data')
       .eq('store_slug', slug)
-      .single();
+      .maybeSingle();
       
     if (error || !data) {
       return { 
@@ -28,13 +28,13 @@ export const api = {
         { onConflict: 'store_slug' }
       )
       .select()
-      .single();
+      .maybeSingle();
       
     if (error) {
       console.error("Supabase update error:", error);
       throw new Error(error.message || "Erro ao salvar configurações da loja.");
     }
-    return data.menu_data;
+    return data?.menu_data || menuData;
   },
 
   getOrders: async (slug: string) => {
@@ -63,18 +63,19 @@ export const api = {
       .update({ status })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },
 
   // ---- FUNÇÕES DO SAAS (SUPER ADMIN) ---- //
   checkAdminAccess: async (email: string) => {
+    if (!email) return null;
     const { data } = await supabase
       .from('app_admins')
       .select('*')
-      .eq('email', email)
-      .single();
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
     return data;
   },
 
