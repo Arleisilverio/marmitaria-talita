@@ -56,6 +56,10 @@ export default function Login() {
   };
 
   const handleSignUp = async () => {
+    if (!email || !password) {
+      toast.error("Por favor, preencha email e senha para criar uma conta.");
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
