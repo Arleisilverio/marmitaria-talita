@@ -23,6 +23,10 @@ export default function Login() {
   }, []);
 
   const checkRedirect = async (email: string) => {
+    if (email === 'arleisilverio41@gmail.com') {
+      navigate('/super-admin');
+      return;
+    }
     const adminData = await api.checkAdminAccess(email);
     if (adminData) {
       navigate('/admin');

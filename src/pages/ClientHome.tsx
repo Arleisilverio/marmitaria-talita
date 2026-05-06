@@ -27,6 +27,7 @@ export default function ClientHome() {
   const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
   const [isStoreAdmin, setIsStoreAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => { 
@@ -36,7 +37,14 @@ export default function ClientHome() {
   useEffect(() => {
     // Verifica se é admin
     supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user?.email === 'arleisilverio41@gmail.com') {
+      if (!data.user?.email) return;
+      if (data.user.email === 'arleisilverio41@gmail.com') {
+        setIsStoreAdmin(true);
+        setIsSuperAdmin(true);
+        return;
+      }
+      const adminData = await api.checkAdminAccess(data.user.email);
+      if (adminData) {
         setIsStoreAdmin(true);
       }
     });
@@ -103,8 +111,8 @@ export default function ClientHome() {
             <button onClick={() => setActiveTab('orders')} className={cn("text-xs font-bold uppercase", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
             <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
             {isStoreAdmin && (
-              <button onClick={() => navigate('/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
-                <ShieldAlert size={14}/> ADMIN
+              <button onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
+                <ShieldAlert size={14}/> {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
               </button>
             )}
           </nav>

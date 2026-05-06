@@ -35,7 +35,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ClientHome />} />
           <Route path="/checkout" element={<ClientCheckout />} />
-          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+          <Route path="/login" element={<Login />} />
           <Route 
             path="/admin" 
             element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
