@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     }
   }, [menuData]);
 
-  const loading = loadingAuth || (!isBlocked && (loadingMenu || loadingOrders));
+  const loading = loadingAuth || (!isBlocked && (loadingMenu || loadingOrders || !menu));
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
