@@ -23,8 +23,10 @@ export const api = {
   updateMenu: async (slug: string, menuData: any) => {
     const { data, error } = await supabase
       .from('store_settings')
-      .update({ menu_data: menuData, updated_at: new Date().toISOString() })
-      .eq('store_slug', slug)
+      .upsert(
+        { store_slug: slug, menu_data: menuData, updated_at: new Date().toISOString() },
+        { onConflict: 'store_slug' }
+      )
       .select()
       .single();
       
