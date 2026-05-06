@@ -63,7 +63,12 @@ export default function Login() {
         password,
       });
       if (error) throw error;
-      toast.success("Conta criada! Verifique seu email.");
+      
+      if (data.session && data.user) {
+        checkRedirect(data.user.email!);
+      } else {
+        toast.success("Conta criada! Verifique seu email para confirmar.");
+      }
     } catch (err: any) {
       toast.error(err.message || "Erro ao cadastrar.");
     } finally {

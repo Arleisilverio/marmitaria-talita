@@ -101,6 +101,14 @@ export const api = {
     return newStatus;
   },
 
+  deleteAppAdmin: async (id: string) => {
+    const { error } = await supabase
+      .from('app_admins')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error("Erro ao excluir lojista.");
+  },
+
   processAI: async (message: string, context: any) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;

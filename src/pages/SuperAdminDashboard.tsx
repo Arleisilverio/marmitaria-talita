@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { supabase } from '../integrations/supabase/client';
-import { Shield, Plus, Power, Users, ArrowRight, Ban, CheckCircle } from 'lucide-react';
+import { Shield, Plus, Power, Users, ArrowRight, Ban, CheckCircle, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function SuperAdminDashboard() {
@@ -60,6 +60,17 @@ export default function SuperAdminDashboard() {
       loadAdmins();
     } catch (err) {
       toast.error("Erro ao alterar status.");
+    }
+  };
+
+  const handleDeleteAdmin = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta loja? A ação não pode ser desfeita.")) return;
+    try {
+      await api.deleteAppAdmin(id);
+      toast.success("Loja excluída com sucesso!");
+      loadAdmins();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir loja.");
     }
   };
 
@@ -136,8 +147,11 @@ export default function SuperAdminDashboard() {
                 </div>
                 
                 <div className="flex gap-2 mt-4">
-                  <button onClick={() => toggleStatus(admin.id, admin.status)} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase flex justify-center items-center gap-2 transition-colors ${admin.status === 'active' ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}>
+                  <button onClick={() => toggleStatus(admin.id, admin.status)} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase flex justify-center items-center gap-2 transition-colors ${admin.status === 'active' ? 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}>
                     {admin.status === 'active' ? <><Ban className="w-4 h-4"/> Bloquear</> : <><CheckCircle className="w-4 h-4"/> Liberar</>}
+                  </button>
+                  <button onClick={() => handleDeleteAdmin(admin.id)} className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors flex items-center justify-center">
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
