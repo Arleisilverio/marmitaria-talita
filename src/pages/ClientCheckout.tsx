@@ -4,6 +4,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { api } from '../lib/api';
+import { useMenu } from '../lib/hooks';
 import { ArrowLeft, Minus, Plus, Bike, Store, Loader2, ShoppingBag, MapPin, Phone, CreditCard } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -12,12 +13,19 @@ export default function ClientCheckout() {
   const { items, total, updateQuantity, clearCart, storeSlug } = useCart();
   const [deliveryType, setDeliveryType] = useState<'entrega' | 'retirada'>('entrega');
   const [formData, setFormData] = useState({ nome: '', telefone: '', endereco: '', pagamento: 'pix', trocoPara: '' });
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const { data: menu, isLoading: loadingMenu } = useMenu(storeSlug);
+  const deliveryFee = Number(menu?.deliveryFee || 0);
+  const hasDelivery = menu?.hasDelivery;
 
   useEffect(() => {
     if (!storeSlug) return navigate('/');
-    api.getMenu(storeSlug).then(() => setLoading(false));
+    
+    // Se a loja não tem delivery, força retirada
+    if (menu && !menu.hasDelivery && deliveryType === 'entrega') {
+      setDeliveryType('retirada');
+    }
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
@@ -25,7 +33,9 @@ export default function ClientCheckout() {
         });
       }
     });
-  }, [storeSlug]);
+  }, [storeSlug, menu]);
+
+  const loading = loadingMenu || !menu;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -44,7 +54,7 @@ export default function ClientCheckout() {
         customer_phone: formData.telefone,
         delivery_address: deliveryType === 'retirada' ? 'RETIRADA' : formData.endereco,
         payment_method: formData.pagamento,
-        total_amount: total + (deliveryType === 'entrega' ? 5 : 0),
+        total_amount: total + (deliveryType === 'entrega' ? deliveryFee : 0),
         status: 'pendente',
         items_json: items,
         store_slug: storeSlug
@@ -111,11 +121,30 @@ export default function ClientCheckout() {
             <h2 className="font-bold text-xl uppercase tracking-tight">Entrega ou Retirada</h2>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setDeliveryType('entrega')} className={cn("flex-1 p-5 rounded-2xl border-2 flex flex-col items-center gap-2 font-bold transition-all", deliveryType === 'entrega' ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10" : "border-white/5 bg-zinc-900/30 text-zinc-500")}>
-              <Bike size={24}/> <span className="text-xs uppercase tracking-widest">Entrega</span>
+            <button 
+              type="button"
+              disabled={!hasDelivery}
+              onClick={() => setDeliveryType('entrega')} 
+              className={cn(
+                "flex-1 p-5 rounded-2xl border-2 flex flex-col items-center gap-2 font-bold transition-all relative overflow-hidden", 
+                deliveryType === 'entrega' ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10" : "border-white/5 bg-zinc-900/30 text-zinc-500",
+                !hasDelivery && "opacity-40 grayscale cursor-not-allowed"
+              )}
+            >
+              <Bike size={24}/> 
+              <span className="text-xs uppercase tracking-widest">Entrega</span>
+              {!hasDelivery && <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] text-white font-black uppercase rotate-12">Indisponível</span>}
             </button>
-            <button onClick={() => setDeliveryType('retirada')} className={cn("flex-1 p-5 rounded-2xl border-2 flex flex-col items-center gap-2 font-bold transition-all", deliveryType === 'retirada' ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10" : "border-white/5 bg-zinc-900/30 text-zinc-500")}>
-              <Store size={24}/> <span className="text-xs uppercase tracking-widest">Retirada</span>
+            <button 
+              type="button"
+              onClick={() => setDeliveryType('retirada')} 
+              className={cn(
+                "flex-1 p-5 rounded-2xl border-2 flex flex-col items-center gap-2 font-bold transition-all", 
+                deliveryType === 'retirada' ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10" : "border-white/5 bg-zinc-900/30 text-zinc-500"
+              )}
+            >
+              <Store size={24}/> 
+              <span className="text-xs uppercase tracking-widest">Retirada</span>
             </button>
           </div>
         </section>
@@ -164,9 +193,9 @@ export default function ClientCheckout() {
 
         <div className="bg-zinc-900/80 backdrop-blur-xl p-6 rounded-3xl space-y-4 border border-white/10 shadow-2xl">
           <div className="flex justify-between text-zinc-500 text-sm font-medium"><span>Subtotal</span><span>{formatBRL(total)}</span></div>
-          <div className="flex justify-between text-zinc-500 text-sm font-medium"><span>Taxa de Entrega</span><span>{deliveryType === 'entrega' ? formatBRL(5) : 'Grátis'}</span></div>
+          <div className="flex justify-between text-zinc-500 text-sm font-medium"><span>Taxa de Entrega</span><span>{deliveryType === 'entrega' ? formatBRL(deliveryFee) : 'Grátis'}</span></div>
           <div className="h-px bg-white/5"></div>
-          <div className="flex justify-between text-white font-black text-2xl uppercase tracking-tight"><span>Total</span><span className="text-primary">{formatBRL(total + (deliveryType === 'entrega' ? 5 : 0))}</span></div>
+          <div className="flex justify-between text-white font-black text-2xl uppercase tracking-tight"><span>Total</span><span className="text-primary">{formatBRL(total + (deliveryType === 'entrega' ? deliveryFee : 0))}</span></div>
         </div>
       </main>
 

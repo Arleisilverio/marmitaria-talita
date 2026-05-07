@@ -12,7 +12,7 @@ export const api = {
       
     if (error || !data) {
       return { 
-        isOpen: false, isDeliveryOpen: false, prepTime: 40, deliveryFee: 5,
+        isOpen: false, hasDelivery: false, prepTime: 40, deliveryFee: 5,
         title: "Nova Loja", description: "Configure seu cardápio no painel admin.", image: "",
         prices: { p: 0, m: 0, g: 0 }, meats: [], drinks: [], slides: []
       };
@@ -117,7 +117,7 @@ export const api = {
     // Usamos um objeto básico para o cardápio inicial
     const initialMenu = {
       isOpen: false,
-      isDeliveryOpen: false,
+      hasDelivery: false,
       prepTime: 40,
       deliveryFee: 5,
       title: storeName,
