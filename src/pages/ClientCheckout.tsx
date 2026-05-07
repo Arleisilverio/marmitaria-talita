@@ -123,17 +123,17 @@ export default function ClientCheckout() {
           <div className="flex gap-3">
             <button 
               type="button"
-              disabled={!hasDelivery}
+              disabled={!hasDelivery || hasDelivery === 'false'}
               onClick={() => setDeliveryType('entrega')} 
               className={cn(
                 "flex-1 p-5 rounded-2xl border-2 flex flex-col items-center gap-2 font-bold transition-all relative overflow-hidden", 
                 deliveryType === 'entrega' ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10" : "border-white/5 bg-zinc-900/30 text-zinc-500",
-                !hasDelivery && "opacity-40 grayscale cursor-not-allowed"
+                (!hasDelivery || hasDelivery === 'false') && "opacity-40 grayscale cursor-not-allowed"
               )}
             >
               <Bike size={24}/> 
               <span className="text-xs uppercase tracking-widest">Entrega</span>
-              {!hasDelivery && <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] text-white font-black uppercase rotate-12">Indisponível</span>}
+              {(!hasDelivery || hasDelivery === 'false') && <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] text-white font-black uppercase rotate-12">Indisponível</span>}
             </button>
             <button 
               type="button"

@@ -7,7 +7,8 @@ import {
   Utensils, Receipt, CheckCircle, Clock, Bike, 
   Plus, Trash2, LogOut, ArrowLeft, Ban, 
   Settings, Save, Coffee, Beef, X, DollarSign,
-  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield, ExternalLink
+  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield, ExternalLink,
+  Printer, MapPin
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -89,7 +90,8 @@ export default function AdminDashboard() {
   const handleSaveMenu = async () => {
     setSaving(true);
     try {
-      await saveMenuApi(menu);
+      const savedData = await saveMenuApi(menu);
+      setMenu(savedData);
       toast.success("Cardápio salvo com sucesso!");
     } catch (err: any) {
       console.error(err);
@@ -163,6 +165,84 @@ export default function AdminDashboard() {
     const reader = new FileReader();
     reader.onloadend = () => updateSlide(id, 'image', reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const handlePrintOrder = (order: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error("Erro ao abrir janela de impressão.");
+
+    const itemsHtml = order.items_json?.map((item: any) => `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>${item.quantity}x ${typeof item.name === 'object' ? item.name.name : item.name} ${item.size ? `(${item.size})` : ''}</span>
+        <span>${formatBRL(item.price * item.quantity)}</span>
+      </div>
+    `).join('');
+
+    const content = `
+      <html>
+        <head>
+          <title>Comanda - ${order.customer_name}</title>
+          <style>
+            @page { margin: 0; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 80mm; 
+              padding: 10px; 
+              margin: 0;
+              font-size: 12px;
+              color: #000;
+            }
+            .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+            .section { border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 10px; }
+            .footer { text-align: center; margin-top: 20px; font-style: italic; }
+            .bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">${menu?.title || 'Loja'}</div>
+            <div>${format(new Date(order.created_at), "dd/MM/yyyy HH:mm")}</div>
+          </div>
+          
+          <div class="section">
+            <div><span class="bold">CLIENTE:</span> ${order.customer_name}</div>
+            <div><span class="bold">TEL:</span> ${order.customer_phone}</div>
+            <div style="margin-top: 5px;"><span class="bold">ENDEREÇO:</span> ${order.delivery_address}</div>
+          </div>
+
+          <div class="section">
+            <div class="bold" style="margin-bottom: 10px;">ITENS:</div>
+            ${itemsHtml}
+          </div>
+
+          <div class="section">
+            <div style="display: flex; justify-content: space-between;">
+              <span class="bold">PAGAMENTO:</span>
+              <span>${order.payment_method.toUpperCase()}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; margin-top: 5px;">
+              <span class="bold">TOTAL:</span>
+              <span class="bold">${formatBRL(order.total_amount)}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            Obrigado pela preferência!
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
   };
 
   if (loading) return (
@@ -303,12 +383,31 @@ export default function AdminDashboard() {
                         <h3 className="text-white font-bold text-lg leading-tight">{order.customer_name}</h3>
                         <p className="text-xs text-zinc-400">{order.customer_phone}</p>
                       </div>
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                        order.status === 'pendente' ? "bg-primary/10 text-primary border border-primary/20" :
-                        order.status === 'confirmado' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        "bg-green-500/10 text-green-500 border border-green-500/20"
-                      )}>{order.status}</span>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handlePrintOrder(order)}
+                          className="p-3 bg-white/5 text-zinc-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                          title="Imprimir Comanda"
+                        >
+                          <Printer className="w-5 h-5" />
+                        </button>
+                        <span className={cn(
+                          "px-3 py-1 h-fit rounded-full text-[9px] font-black uppercase tracking-widest",
+                          order.status === 'pendente' ? "bg-primary/10 text-primary border border-primary/20" :
+                          order.status === 'confirmado' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                          "bg-green-500/10 text-green-500 border border-green-500/20"
+                        )}>{order.status}</span>
+                      </div>
+                    </div>
+
+                    <div className="mb-6 flex items-start gap-2 bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
+                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Endereço de Entrega</p>
+                        <p className={cn("text-xs font-medium", order.delivery_address === 'RETIRADA' ? "text-secondary" : "text-white")}>
+                          {order.delivery_address}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="bg-black/30 rounded-2xl p-4 mb-6 space-y-2 flex-grow border border-white/5">
@@ -515,7 +614,8 @@ export default function AdminDashboard() {
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Delivery via Motoboy</label>
                     <button 
-                      onClick={() => setMenu({...menu, hasDelivery: !menu.hasDelivery})} 
+                      type="button"
+                      onClick={() => setMenu({ ...menu, hasDelivery: !Boolean(menu.hasDelivery) })} 
                       className={cn(
                         "w-full p-4 rounded-xl font-bold text-sm uppercase tracking-widest transition-all border",
                         menu.hasDelivery ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
@@ -523,6 +623,7 @@ export default function AdminDashboard() {
                     >
                       {menu.hasDelivery ? 'ATIVADO' : 'DESATIVADO'}
                     </button>
+                    <p className="text-[9px] text-zinc-600 uppercase font-bold text-center">Desative para esconder a opção de entrega no checkout</p>
                   </div>
 
                   <div className="space-y-4">
