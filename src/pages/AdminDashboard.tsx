@@ -16,7 +16,7 @@ import { useOrders, useMenu, useUpdateOrderStatus, useSaveMenu } from '../lib/ho
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports' | 'marketing'>('orders');
   const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [menu, setMenu] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
@@ -275,6 +275,9 @@ export default function AdminDashboard() {
           </button>
           <button onClick={() => setActiveTab('settings')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'settings' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Settings className="w-4 h-4" /> Configs
+          </button>
+          <button onClick={() => setActiveTab('marketing')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'marketing' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
+            <Camera className="w-4 h-4" /> Divulgação
           </button>
           <button onClick={() => setActiveTab('reports')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'reports' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Calendar className="w-4 h-4" /> Relatórios
@@ -546,6 +549,106 @@ export default function AdminDashboard() {
                   <p className="text-zinc-500 text-[10px] uppercase font-mono tracking-tighter">Sair do painel administrativo imediatamente.</p>
                 </div>
                 <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="bg-red-500 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/20">LOGOUT</button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ABA DIVULGAÇÃO (MARKETING) */}
+          {activeTab === 'marketing' && (
+            <motion.div key="marketing" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto space-y-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* QR CODE CARD */}
+                <div className="glass-card p-8 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-6">
+                  <div className="w-full">
+                    <h3 className="text-white font-bold text-xl mb-2">QR Code da sua Loja</h3>
+                    <p className="text-zinc-500 text-xs uppercase tracking-widest font-mono">Imprima e coloque no seu balcão</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-3xl shadow-2xl">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/${storeSlug}`)}`} 
+                      alt="QR Code da Loja"
+                      className="w-48 h-48 md:w-64 md:h-64"
+                    />
+                  </div>
+
+                  <div className="flex flex-col w-full gap-3">
+                    <button 
+                      onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(`${window.location.origin}/${storeSlug}`)}`, '_blank')}
+                      className="w-full bg-white text-black py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+                    >
+                      Baixar QR Code (Alta Resolução)
+                    </button>
+                    <p className="text-[10px] text-zinc-600 uppercase font-bold">O cliente aponta a câmera e abre direto o seu cardápio</p>
+                  </div>
+                </div>
+
+                {/* LINKS E COMPARTILHAMENTO */}
+                <div className="space-y-6">
+                  <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-6">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      <ExternalLink className="text-primary w-5 h-5"/> Links Diretos
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Link da sua Loja</label>
+                        <div className="flex gap-2">
+                          <input 
+                            readOnly 
+                            value={`${window.location.origin}/${storeSlug}`}
+                            className="flex-grow bg-black/40 border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-primary font-mono"
+                          />
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/${storeSlug}`);
+                              toast.success("Link copiado!");
+                            }}
+                            className="bg-primary text-white p-4 rounded-xl font-bold text-xs"
+                          >
+                            COPIAR
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Link do Shopping (Todas as Lojas)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            readOnly 
+                            value={window.location.origin}
+                            className="flex-grow bg-black/40 border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-primary font-mono"
+                          />
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(window.location.origin);
+                              toast.success("Link copiado!");
+                            }}
+                            className="bg-zinc-800 text-white p-4 rounded-xl font-bold text-xs"
+                          >
+                            COPIAR
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-card p-8 rounded-3xl border border-white/5 bg-green-500/5 border-green-500/10 space-y-4">
+                    <h3 className="text-green-500 font-bold text-lg flex items-center gap-2">
+                      <Coffee className="w-5 h-5"/> WhatsApp
+                    </h3>
+                    <p className="text-zinc-400 text-sm">Envie seu cardápio para seus clientes agora mesmo.</p>
+                    <button 
+                      onClick={() => {
+                        const message = `Olá! Confira nosso cardápio online e faça seu pedido aqui: ${window.location.origin}/${storeSlug}`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+                      }}
+                      className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-600/20 hover:bg-green-500 transition-colors"
+                    >
+                      Enviar no WhatsApp
+                    </button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}

@@ -252,6 +252,19 @@ export default function ClientHome() {
       </nav>
 
       <AIChat menuContext={menu} storeName={menu.title} />
+
+      {/* BOTÃO FLUTUANTE ADMIN (Apenas para o dono) */}
+      {isStoreAdmin && (
+        <motion.button 
+          initial={{ x: 100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')}
+          className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"
+        >
+          <ShieldAlert size={20}/>
+          <span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span>
+        </motion.button>
+      )}
     </div>
   );
 }
