@@ -18,7 +18,12 @@ export default function Login() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) checkRedirect(user.email!);
+      if (user) {
+        checkRedirect(user.email!).catch(err => {
+          console.error("Erro no redirecionamento:", err);
+          toast.error("Erro ao carregar seu perfil.");
+        });
+      }
     });
   }, []);
 

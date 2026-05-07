@@ -31,14 +31,14 @@ export default function Marketplace() {
       {/* Hero Section */}
       <div className="relative h-[40vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/20 to-background z-0" />
-        <div className="relative z-10 text-center px-4">
+        <div className="relative z-10 text-center px-4 w-full max-w-4xl">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center justify-center gap-2 mb-4"
           >
             <Leaf className="text-secondary w-8 h-8" />
-            <span className="text-primary font-mono text-sm font-bold tracking-widest uppercase">Marmitaria Talita Platform</span>
+            <span className="text-primary font-mono text-sm font-bold tracking-widest uppercase">Shopping da Quebrada</span>
           </motion.div>
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
@@ -46,16 +46,26 @@ export default function Marketplace() {
             transition={{ delay: 0.1 }}
             className="text-4xl md:text-6xl font-heading font-black text-white mb-4 tracking-tighter"
           >
-            SABORES QUE <span className="text-primary">CONECTAM</span>
+            SHOPPING DA <span className="text-primary">QUEBRADA</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-zinc-400 max-w-lg mx-auto"
+            className="text-zinc-400 max-w-lg mx-auto mb-8"
           >
             Escolha sua marmitaria favorita e receba comida caseira de verdade onde você estiver.
           </motion.p>
+          
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => navigate('/login')}
+            className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-primary transition-colors border border-white/5 px-6 py-2 rounded-full"
+          >
+            Área do Lojista
+          </motion.button>
         </div>
       </div>
 

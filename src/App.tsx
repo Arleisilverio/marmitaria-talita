@@ -27,7 +27,11 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) return null;
+  if (loading) return (
+    <div className="min-h-screen bg-[#0d0f0c] flex items-center justify-center">
+      <div className="w-10 h-10 border-2 border-[#e2725b] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
     <CartProvider>
