@@ -7,7 +7,7 @@ import {
   Utensils, Receipt, CheckCircle, Clock, Bike, 
   Plus, Trash2, LogOut, ArrowLeft, Ban, 
   Settings, Save, Coffee, Beef, X, DollarSign,
-  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield
+  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield, ExternalLink
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
