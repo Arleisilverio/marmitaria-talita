@@ -28,14 +28,20 @@ export default function Login() {
   }, []);
 
   const checkRedirect = async (email: string) => {
-    if (email === 'arleisilverio41@gmail.com') {
-      navigate('/super-admin');
-      return;
-    }
-    const adminData = await api.checkAdminAccess(email);
-    if (adminData) {
-      navigate('/admin');
-    } else {
+    try {
+      if (email === 'arleisilverio41@gmail.com') {
+        navigate('/super-admin');
+        return;
+      }
+      const adminData = await api.checkAdminAccess(email);
+      if (adminData) {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      console.error("Erro no checkRedirect:", err);
+      toast.error("Erro ao identificar seu perfil. Redirecionando...");
       navigate('/');
     }
   };
@@ -51,9 +57,12 @@ export default function Login() {
       });
 
       if (error) throw error;
-      if (data.user) checkRedirect(data.user.email!);
+      if (data.user) {
+        await checkRedirect(data.user.email!);
+      }
       
     } catch (err: any) {
+      console.error("Login error:", err);
       toast.error(err.message || "Erro ao entrar.");
     } finally {
       setLoading(false);

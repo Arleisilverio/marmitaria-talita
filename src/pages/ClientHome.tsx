@@ -19,9 +19,13 @@ const itemVariants = { hidden: { opacity: 0, y: 20, filter: 'blur(10px)' }, show
 
 export default function ClientHome() {
   const { slug } = useParams();
+  const { addItem, total, items, setStoreSlug } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { addItem, total, items } = useCart();
+
+  useEffect(() => {
+    if (slug) setStoreSlug(slug);
+  }, [slug]);
   
   const { data: menu, isLoading: loading } = useMenu(slug || '');
   const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
@@ -247,7 +251,7 @@ export default function ClientHome() {
         </button>
       </nav>
 
-      <AIChat menuContext={menu} />
+      <AIChat menuContext={menu} storeName={menu.title} />
     </div>
   );
 }

@@ -37,25 +37,31 @@ export default function AdminDashboard() {
   }, []);
 
   const checkAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return navigate('/login');
-    setUserEmail(user.email || '');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return navigate('/login');
+      setUserEmail(user.email || '');
 
-    const adminData = await api.checkAdminAccess(user.email!);
-    if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
-      toast.error("Acesso negado.");
-      return navigate('/');
-    }
+      const adminData = await api.checkAdminAccess(user.email!);
+      if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
+        toast.error("Acesso negado.");
+        return navigate('/');
+      }
 
-    if (adminData?.status === 'blocked') {
-      setIsBlocked(true);
+      if (adminData?.status === 'blocked') {
+        setIsBlocked(true);
+        return;
+      }
+
+      const slug = adminData?.slug || 'marmitaria-talita';
+      setStoreSlug(slug);
+    } catch (err) {
+      console.error("Erro no checkAccess:", err);
+      toast.error("Erro ao validar acesso.");
+      navigate('/');
+    } finally {
       setLoadingAuth(false);
-      return;
     }
-
-    const slug = adminData?.slug || 'marmitaria-talita';
-    setStoreSlug(slug);
-    setLoadingAuth(false);
   };
 
   const { data: menuData, isLoading: loadingMenu } = useMenu(storeSlug);
@@ -177,12 +183,19 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
+  const todayOrders = orders.filter(o => {
+    if (!o?.created_at) return false;
+    try {
+      return isSameDay(new Date(o.created_at), new Date());
+    } catch {
+      return false;
+    }
+  });
   
   // Reports Logic
   const reportOrders = orders.filter(o => {
+    if (!o?.created_at) return false;
     try {
-      // Ensure we compare dates correctly by stripping time from created_at
       const orderDate = format(new Date(o.created_at), 'yyyy-MM-dd');
       return orderDate === reportDate;
     } catch {
@@ -190,7 +203,7 @@ export default function AdminDashboard() {
     }
   });
   const deliveredOrders = reportOrders.filter(o => o.status === 'entregue');
-  const totalRevenue = deliveredOrders.reduce((acc, order) => acc + order.total_amount, 0);
+  const totalRevenue = deliveredOrders.reduce((acc, order) => acc + (order.total_amount || 0), 0);
   const ticketMedio = deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
 
   return (
@@ -198,7 +211,7 @@ export default function AdminDashboard() {
       {/* HEADER PREMIUM */}
       <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 sticky top-0 z-50 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
+          <button onClick={() => navigate(`/${storeSlug}`)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -424,7 +437,7 @@ export default function AdminDashboard() {
                             name={`price_${size}`}
                             autoComplete="off"
                             type="text" 
-                            value={menu.prices[size]} 
+                            value={menu.prices?.[size] || '0'} 
                             onChange={e => updatePrice(size as any, e.target.value)}
                             className="w-full bg-black/40 border border-white/5 rounded-xl p-4 pl-8 text-white outline-none focus:border-primary transition-all"
                           />

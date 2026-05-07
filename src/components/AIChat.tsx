@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, X, Send, Bot } from 'lucide-react';
 import { api } from '../lib/api';
 
-export default function AIChat({ menuContext }: { menuContext: any }) {
+export default function AIChat({ menuContext, storeName }: { menuContext: any, storeName?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
-    { role: 'assistant', content: 'Olá! Sou a Talita. Em que posso te ajudar hoje? 🍲' }
+    { role: 'assistant', content: `Olá! Sou a assistente da ${storeName || 'loja'}. Em que posso te ajudar hoje? 🍲` }
   ]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
