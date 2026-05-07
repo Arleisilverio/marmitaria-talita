@@ -24,7 +24,11 @@ export const api = {
     const { data, error } = await supabase
       .from('store_settings')
       .upsert(
-        { store_slug: slug, menu_data: menuData, updated_at: new Date().toISOString() },
+        { 
+          store_slug: slug.toLowerCase().trim(), 
+          menu_data: menuData, 
+          updated_at: new Date().toISOString() 
+        },
         { onConflict: 'store_slug' }
       )
       .select()
@@ -32,6 +36,9 @@ export const api = {
       
     if (error) {
       console.error("Supabase update error:", error);
+      if (error.code === '42501') {
+        throw new Error("Erro de permissão (RLS): Você não tem autorização para alterar as configurações desta loja.");
+      }
       throw new Error(error.message || "Erro ao salvar configurações da loja.");
     }
     return data?.menu_data || menuData;
@@ -88,10 +95,52 @@ export const api = {
   },
 
   addAppAdmin: async (email: string, storeName: string, slug: string) => {
-    const { error } = await supabase
+    const cleanSlug = slug.toLowerCase().trim().replace(/\s+/g, '-');
+    const cleanEmail = email.toLowerCase().trim();
+
+    // 1. Adiciona na tabela de admins
+    const { error: adminError } = await supabase
       .from('app_admins')
-      .insert({ email, store_name: storeName, slug: slug.toLowerCase().replace(/\s+/g, '-') });
-    if (error) throw new Error("Erro ao cadastrar lojista. E-mail ou Slug já podem estar em uso.");
+      .insert({ 
+        email: cleanEmail, 
+        store_name: storeName, 
+        slug: cleanSlug,
+        status: 'active' // Garante que comece ativo
+      });
+      
+    if (adminError) {
+      console.error("AddAdmin error:", adminError);
+      throw new Error("Erro ao cadastrar lojista. E-mail ou Slug já podem estar em uso.");
+    }
+
+    // 2. Inicializa as configurações da loja para evitar erro de RLS no primeiro save
+    // Usamos um objeto básico para o cardápio inicial
+    const initialMenu = {
+      isOpen: false,
+      isDeliveryOpen: false,
+      prepTime: 40,
+      deliveryFee: 5,
+      title: storeName,
+      description: "Bem-vindo à nossa loja! Cardápio em breve.",
+      image: "",
+      prices: { p: "0", m: "0", g: "0" },
+      meats: [],
+      drinks: [],
+      slides: []
+    };
+
+    const { error: settingsError } = await supabase
+      .from('store_settings')
+      .insert({
+        store_slug: cleanSlug,
+        menu_data: initialMenu
+      });
+
+    if (settingsError) {
+      console.error("Settings init error:", settingsError);
+      // Não lançamos erro aqui para não travar o cadastro, 
+      // mas o ideal é que o RLS do Super Admin permita isso.
+    }
   },
 
   toggleAppAdminStatus: async (id: string, currentStatus: string) => {
