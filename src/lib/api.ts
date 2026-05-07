@@ -182,6 +182,16 @@ export const api = {
     }));
   },
 
+  getProfile: async (userId: string) => {
+    if (!userId) return null;
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    return data;
+  },
+
   processAI: async (message: string, context: any) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;

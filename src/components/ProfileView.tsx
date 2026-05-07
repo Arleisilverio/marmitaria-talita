@@ -7,7 +7,12 @@ import { User, MapPin, Phone, LogOut, Camera, Save, Edit2, ShieldAlert } from 'l
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'react-hot-toast';
 
-export default function ProfileView() {
+interface ProfileViewProps {
+  isMandatory?: boolean;
+  onSaveSuccess?: () => void;
+}
+
+export default function ProfileView({ isMandatory = false, onSaveSuccess }: ProfileViewProps) {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +42,13 @@ export default function ProfileView() {
           address: data.address || '',
           avatar_url: data.avatar_url || ''
         });
+        
+        // Se for obrigatório e algum campo estiver faltando, entra em edição
+        if (isMandatory && (!data.full_name || !data.phone || !data.address)) {
+          setIsEditing(true);
+        }
+      } else if (isMandatory) {
+        setIsEditing(true);
       }
     }
     setLoading(false);
@@ -67,6 +79,7 @@ export default function ProfileView() {
       if (error) throw error;
       toast.success("Perfil atualizado com sucesso!");
       setIsEditing(false);
+      if (onSaveSuccess) onSaveSuccess();
     } catch (err: any) {
       toast.error("Erro ao salvar perfil.");
       console.error(err);
@@ -103,6 +116,22 @@ export default function ProfileView() {
 
   return (
     <div className="px-container pt-8 space-y-6 pb-24 max-w-2xl mx-auto">
+      {isMandatory && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-primary/10 border border-primary/20 p-4 rounded-2xl flex items-start gap-4 mb-8"
+        >
+          <div className="bg-primary/20 p-2 rounded-xl text-primary">
+            <ShieldAlert size={20} />
+          </div>
+          <div>
+            <h4 className="text-white font-bold text-sm">Cadastro Obrigatório</h4>
+            <p className="text-zinc-400 text-xs mt-1">Para garantir a entrega correta do seu pedido, preencha seu nome, telefone e endereço abaixo.</p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="flex flex-col items-center gap-4 mb-8">
         <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center shadow-2xl overflow-hidden border-4 border-surface">
           {profile.avatar_url ? (

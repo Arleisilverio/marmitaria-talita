@@ -32,6 +32,8 @@ export default function ClientHome() {
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
   const [isStoreAdmin, setIsStoreAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(true);
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => { 
@@ -39,20 +41,49 @@ export default function ClientHome() {
   }, [location]);
 
   useEffect(() => {
-    // Verifica se é admin
+    // Verifica se é admin e checa perfil
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user?.email) return;
-      if (data.user.email === 'arleisilverio41@gmail.com') {
+      const user = data.user;
+      if (!user?.email) {
+        setCheckingProfile(false);
+        return;
+      }
+      
+      // Checa se o perfil está completo
+      const profile = await api.getProfile(user.id);
+      const complete = !!(profile?.full_name && profile?.phone && profile?.address);
+      setIsProfileComplete(complete);
+      setCheckingProfile(false);
+      
+      if (!complete) {
+        setActiveTab('profile');
+        toast.error("Por favor, complete seu cadastro para continuar.", { id: 'profile-warning' });
+      }
+
+      if (user.email === 'arleisilverio41@gmail.com') {
         setIsStoreAdmin(true);
         setIsSuperAdmin(true);
         return;
       }
-      const adminData = await api.checkAdminAccess(data.user.email);
+      const adminData = await api.checkAdminAccess(user.email);
       if (adminData) {
         setIsStoreAdmin(true);
       }
     });
   }, []);
+
+  const refreshProfileStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const profile = await api.getProfile(user.id);
+      const complete = !!(profile?.full_name && profile?.phone && profile?.address);
+      setIsProfileComplete(complete);
+      if (complete) {
+        setActiveTab('menu');
+        toast.success("Perfil completo! Agora você pode fazer pedidos.");
+      }
+    }
+  };
 
   // Timer do Carrossel
   useEffect(() => {
@@ -120,8 +151,18 @@ export default function ClientHome() {
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
-            <button onClick={() => setActiveTab('menu')} className={cn("text-xs font-bold uppercase", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>Cardápio</button>
-            <button onClick={() => setActiveTab('orders')} className={cn("text-xs font-bold uppercase", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
+            <button 
+              onClick={() => isProfileComplete && setActiveTab('menu')} 
+              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'menu' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+            >
+              Cardápio
+            </button>
+            <button 
+              onClick={() => isProfileComplete && setActiveTab('orders')} 
+              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'orders' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+            >
+              Pedidos
+            </button>
             <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
             {isStoreAdmin && (
               <button onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
@@ -224,7 +265,14 @@ export default function ClientHome() {
           )}
 
           {activeTab === 'orders' && <div className="mt-6"><OrdersView /></div>}
-          {activeTab === 'profile' && <div className="mt-6"><ProfileView /></div>}
+          {activeTab === 'profile' && (
+            <div className="mt-6">
+              <ProfileView 
+                isMandatory={!isProfileComplete} 
+                onSaveSuccess={refreshProfileStatus} 
+              />
+            </div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -240,10 +288,16 @@ export default function ClientHome() {
 
       {/* BARRA MOBILE */}
       <nav className="md:hidden bg-zinc-950 fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
-        <button onClick={() => setActiveTab('menu')} className={cn(activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>
+        <button 
+          onClick={() => isProfileComplete && setActiveTab('menu')} 
+          className={cn(activeTab === 'menu' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+        >
           <Utensils/><span className="text-[10px] block font-bold">Cardápio</span>
         </button>
-        <button onClick={() => setActiveTab('orders')} className={cn(activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>
+        <button 
+          onClick={() => isProfileComplete && setActiveTab('orders')} 
+          className={cn(activeTab === 'orders' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+        >
           <Receipt/><span className="text-[10px] block font-bold">Pedidos</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>

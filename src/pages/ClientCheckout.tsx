@@ -19,6 +19,24 @@ export default function ClientCheckout() {
   const hasDelivery = menu?.hasDelivery;
 
   useEffect(() => {
+    // Verifica login e perfil
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        navigate('/login');
+        return;
+      }
+      
+      const profile = await api.getProfile(data.user.id);
+      const isComplete = !!(profile?.full_name && profile?.phone && profile?.address);
+      
+      if (!isComplete) {
+        toast.error("Complete seu cadastro antes de finalizar o pedido.");
+        navigate(`/${storeSlug || ''}`, { state: { tab: 'profile' } });
+      }
+    });
+  }, [navigate, storeSlug]);
+
+  useEffect(() => {
     if (!storeSlug) return navigate('/');
     
     // Se a loja não tem delivery, força retirada
