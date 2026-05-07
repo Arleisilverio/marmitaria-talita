@@ -213,11 +213,17 @@ export default function AdminDashboard() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => {
+            onClick={async () => {
               const updated = { ...menu, isOpen: !menu.isOpen };
               setMenu(updated);
-              saveMenuApi(updated);
-              toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
+              try {
+                await saveMenuApi(updated);
+                toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
+              } catch (err: any) {
+                toast.error(err.message || "Erro ao alterar status da loja.");
+                // Reverte o estado visual se falhar
+                setMenu(menu);
+              }
             }}
             className={cn(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
