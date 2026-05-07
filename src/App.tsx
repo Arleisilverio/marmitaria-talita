@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { supabase } from './integrations/supabase/client';
 import { CartProvider } from './contexts/CartContext';
 import ClientHome from './pages/ClientHome';
+import Marketplace from './pages/Marketplace';
 import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -33,17 +34,12 @@ export default function App() {
       <Toaster position="top-center" reverseOrder={false} />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<ClientHome />} />
+          <Route path="/" element={<Marketplace />} />
           <Route path="/checkout" element={<ClientCheckout />} />
           <Route path="/login" element={<Login />} />
-          <Route 
-            path="/admin" 
-            element={session ? <AdminDashboard /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/super-admin" 
-            element={session ? <SuperAdminDashboard /> : <Navigate to="/login" />} 
-          />
+          <Route path="/admin" element={session ? <AdminDashboard /> : <Navigate to="/login" />} />
+          <Route path="/super-admin" element={session ? <SuperAdminDashboard /> : <Navigate to="/login" />} />
+          <Route path="/:slug" element={<ClientHome />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

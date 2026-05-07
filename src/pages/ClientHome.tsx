@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { api } from '../lib/api';
@@ -9,7 +9,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -18,12 +18,12 @@ const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transiti
 const itemVariants = { hidden: { opacity: 0, y: 20, filter: 'blur(10px)' }, show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring', stiffness: 100, damping: 15 } } };
 
 export default function ClientHome() {
+  const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { addItem, total, items } = useCart();
   
-  const SLUG_FIXO = 'marmitaria-talita';
-  const { data: menu, isLoading: loading } = useMenu(SLUG_FIXO);
+  const { data: menu, isLoading: loading } = useMenu(slug || '');
   const [selectedSize, setSelectedSize] = useState<'p' | 'm' | 'g'>('m');
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'profile'>('menu');
   const [isStoreAdmin, setIsStoreAdmin] = useState(false);
@@ -99,11 +99,20 @@ export default function ClientHome() {
       {/* HEADER */}
       <header className="bg-surface/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 sticky top-0 z-50 w-full">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Leaf className="text-secondary w-6 h-6" />
-            <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter">
-              {menu.title}
-            </h1>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white"
+              title="Voltar para a vitrine"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              <Leaf className="text-secondary w-6 h-6" />
+              <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter">
+                {menu.title}
+              </h1>
+            </div>
           </div>
 
           <nav className="hidden md:flex items-center gap-8">

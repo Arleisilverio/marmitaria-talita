@@ -198,11 +198,11 @@ export default function AdminDashboard() {
       {/* HEADER PREMIUM */}
       <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 sticky top-0 z-50 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/s/${storeSlug}`)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
+          <button onClick={() => navigate('/')} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu.title}</h1>
+            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu?.title || 'Loja'}</h1>
             <div className="flex items-center gap-2">
                <span className="text-[10px] text-primary font-black uppercase tracking-widest">Painel Admin</span>
                <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
@@ -212,6 +212,14 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <a 
+            href={`/${storeSlug}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors border border-white/10 flex items-center gap-2"
+          >
+            <ExternalLink className="w-4 h-4" /> Ver Loja Online
+          </a>
           <button 
             onClick={async () => {
               const updated = { ...menu, isOpen: !menu.isOpen };

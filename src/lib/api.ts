@@ -161,6 +161,27 @@ export const api = {
     if (error) throw new Error("Erro ao excluir lojista.");
   },
 
+  // Busca todas as lojas ativas para a vitrine
+  getAllStores: async () => {
+    const { data, error } = await supabase
+      .from('store_settings')
+      .select(`
+        store_slug,
+        menu_data
+      `);
+      
+    if (error) return [];
+    
+    // Filtra apenas as que têm dados básicos de menu
+    return data.map(item => ({
+      slug: item.store_slug,
+      title: item.menu_data?.title || "Nova Loja",
+      description: item.menu_data?.description || "",
+      image: item.menu_data?.image || "",
+      isOpen: item.menu_data?.isOpen || false
+    }));
+  },
+
   processAI: async (message: string, context: any) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
