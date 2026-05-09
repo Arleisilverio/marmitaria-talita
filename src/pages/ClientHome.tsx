@@ -48,8 +48,25 @@ export default function ClientHome() {
         setCheckingProfile(false);
         return;
       }
+
+      // 1. Primeiro verifica se é Admin/SuperAdmin
+      let isAdmin = false;
+      let isSuper = false;
+
+      if (user.email === 'arleisilverio41@gmail.com') {
+        isAdmin = true;
+        isSuper = true;
+        setIsStoreAdmin(true);
+        setIsSuperAdmin(true);
+      } else {
+        const adminData = await api.checkAdminAccess(user.email);
+        if (adminData) {
+          isAdmin = true;
+          setIsStoreAdmin(true);
+        }
+      }
       
-      // Checa se o perfil está completo
+      // 2. Checa se o perfil está completo
       const profile = await api.getProfile(user.id);
       const complete = !!(profile?.full_name && profile?.phone && profile?.address);
       setIsProfileComplete(complete);
@@ -57,17 +74,11 @@ export default function ClientHome() {
       
       if (!complete) {
         setActiveTab('profile');
-        toast.error("Por favor, complete seu cadastro para continuar.", { id: 'profile-warning' });
-      }
-
-      if (user.email === 'arleisilverio41@gmail.com') {
-        setIsStoreAdmin(true);
-        setIsSuperAdmin(true);
-        return;
-      }
-      const adminData = await api.checkAdminAccess(user.email);
-      if (adminData) {
-        setIsStoreAdmin(true);
+        const msg = isAdmin 
+          ? "Bem-vindo! Complete seu perfil para liberar o acesso ao seu painel administrativo."
+          : "Por favor, complete seu cadastro para continuar.";
+        
+        toast.error(msg, { id: 'profile-warning', duration: 6000 });
       }
     });
   }, []);
@@ -78,9 +89,14 @@ export default function ClientHome() {
       const profile = await api.getProfile(user.id);
       const complete = !!(profile?.full_name && profile?.phone && profile?.address);
       setIsProfileComplete(complete);
+      
       if (complete) {
+        if (isStoreAdmin) {
+          toast.success("Perfil completo! Seu painel administrativo agora está liberado.", { duration: 5000 });
+        } else {
+          toast.success("Perfil completo! Agora você pode fazer pedidos.");
+        }
         setActiveTab('menu');
-        toast.success("Perfil completo! Agora você pode fazer pedidos.");
       }
     }
   };

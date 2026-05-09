@@ -43,19 +43,34 @@ export default function AdminDashboard() {
       if (!user) return navigate('/login');
       setUserEmail(user.email || '');
 
-      const adminData = await api.checkAdminAccess(user.email!);
+      const [adminData, profile] = await Promise.all([
+        api.checkAdminAccess(user.email!),
+        api.getProfile(user.id)
+      ]);
+
       if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
         toast.error("Acesso negado.");
         return navigate('/');
       }
 
-      if (adminData?.status === 'blocked') {
-        setIsBlocked(true);
-        return;
-      }
+      const isProfileComplete = profile && profile.name && profile.phone && profile.address;
 
-      const slug = adminData?.slug || 'marmitaria-talita';
-      setStoreSlug(slug);
+      if (adminData) {
+        if (adminData.status === 'blocked') {
+          setIsBlocked(true);
+          return;
+        }
+
+        // Se o perfil do lojista estiver incompleto, redireciona para a conclusão do perfil
+        if (!isProfileComplete) {
+          toast.error("Por favor, preencha seus dados de perfil antes de acessar o painel.");
+          return navigate(`/${adminData.slug}`, { state: { tab: 'profile' } });
+        }
+
+        setStoreSlug(adminData.slug);
+      } else if (user.email === 'arleisilverio41@gmail.com') {
+        setStoreSlug('marmitaria-talita');
+      }
     } catch (err) {
       console.error("Erro no checkAccess:", err);
       toast.error("Erro ao validar acesso.");

@@ -27,16 +27,35 @@ export default function Login() {
     });
   }, []);
 
-  const checkRedirect = async (email: string) => {
+  const checkRedirect = async (userEmail: string) => {
     try {
-      if (email === 'arleisilverio41@gmail.com') {
+      if (userEmail === 'arleisilverio41@gmail.com') {
         navigate('/super-admin');
         return;
       }
-      const adminData = await api.checkAdminAccess(email);
+
+      // Buscar o usuário autenticado para obter o ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Buscar dados de admin e perfil em paralelo
+      const [adminData, profile] = await Promise.all([
+        api.checkAdminAccess(userEmail),
+        api.getProfile(user.id)
+      ]);
+
+      const isProfileComplete = profile && profile.name && profile.phone && profile.address;
+
       if (adminData) {
-        navigate('/admin');
+        // Se for lojista e o perfil estiver incompleto, força a ida para a aba de perfil no app
+        if (!isProfileComplete) {
+          navigate(`/${adminData.slug}`, { state: { tab: 'profile' } });
+          toast.success("Bem-vindo! Por favor, complete seu cadastro para liberar o painel administrativo.");
+        } else {
+          navigate('/admin');
+        }
       } else {
+        // Cliente comum vai para a home (Marketplace)
         navigate('/');
       }
     } catch (err) {
