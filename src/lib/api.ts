@@ -2,8 +2,28 @@ import { supabase } from '../integrations/supabase/client';
 
 export const api = {
   // Busca o cardápio de uma loja específica
+  // Retorna null com storeBlocked=true se o lojista estiver bloqueado pelo Super Admin
   getMenu: async (slug: string) => {
     if (!slug) return null;
+
+    // 1. Verifica se a loja existe e está ativa
+    const { data: adminData } = await supabase
+      .from('app_admins')
+      .select('status, store_name')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    // Loja bloqueada pelo Super Admin
+    if (adminData && adminData.status === 'blocked') {
+      return {
+        storeBlocked: true,
+        isOpen: false, hasDelivery: false, prepTime: 0, deliveryFee: 0,
+        title: adminData.store_name || "Loja Indisponível",
+        description: "", image: "",
+        prices: { p: 0, m: 0, g: 0 }, meats: [], drinks: [], slides: []
+      };
+    }
+
     const { data, error } = await supabase
       .from('store_settings')
       .select('menu_data')
@@ -161,14 +181,22 @@ export const api = {
     if (error) throw new Error("Erro ao excluir lojista.");
   },
 
-  // Busca todas as lojas ativas para a vitrine
+  // Busca apenas lojas ATIVAS para a vitrine (bloqueadas ficam invisíveis)
   getAllStores: async () => {
+    // Busca apenas slugs de lojas com status 'active'
+    const { data: activeAdmins, error: adminError } = await supabase
+      .from('app_admins')
+      .select('slug')
+      .eq('status', 'active');
+
+    if (adminError || !activeAdmins || activeAdmins.length === 0) return [];
+
+    const activeSlugs = activeAdmins.map(a => a.slug);
+
     const { data, error } = await supabase
       .from('store_settings')
-      .select(`
-        store_slug,
-        menu_data
-      `);
+      .select('store_slug, menu_data')
+      .in('store_slug', activeSlugs);
       
     if (error) return [];
     

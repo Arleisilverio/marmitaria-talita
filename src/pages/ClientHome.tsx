@@ -9,7 +9,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ShieldOff } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -97,6 +97,31 @@ export default function ClientHome() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-white">
       <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
       <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Preparando Marmitaria...</p>
+    </div>
+  );
+
+  // Loja bloqueada pelo Super Admin por inadimplência
+  if (menu.storeBlocked) return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-white">
+      <div className="max-w-md w-full bg-zinc-900/80 border border-red-500/20 rounded-3xl p-10 text-center backdrop-blur-xl">
+        <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6">
+          <ShieldOff className="w-10 h-10 text-red-500" />
+        </div>
+        <h2 className="font-heading text-2xl font-black text-white mb-3 tracking-tight">
+          Loja Temporariamente Fechada
+        </h2>
+        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+          Esta loja está indisponível no momento.<br />
+          Por favor, tente novamente mais tarde.
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+        >
+          <ArrowLeft size={16} />
+          Ver Outras Lojas
+        </button>
+      </div>
     </div>
   );
 

@@ -5,7 +5,7 @@ import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { api } from '../lib/api';
 import { useMenu } from '../lib/hooks';
-import { ArrowLeft, Minus, Plus, Bike, Store, Loader2, ShoppingBag, MapPin, Phone, CreditCard } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Bike, Store, Loader2, ShoppingBag, MapPin, Phone, CreditCard, ShieldOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function ClientCheckout() {
@@ -38,6 +38,12 @@ export default function ClientCheckout() {
 
   useEffect(() => {
     if (!storeSlug) return navigate('/');
+
+    // Loja bloqueada: redireciona imediatamente
+    if (menu?.storeBlocked) {
+      toast.error("Esta loja está temporariamente indisponível.");
+      return navigate('/');
+    }
     
     // Se a loja não tem delivery, força retirada
     if (menu && !menu.hasDelivery && deliveryType === 'entrega') {
@@ -60,6 +66,19 @@ export default function ClientCheckout() {
     if (items.length === 0) return toast.error("Seu carrinho está vazio!");
     if (!formData.nome || !formData.telefone || (deliveryType === 'entrega' && !formData.endereco)) {
       return toast.error("Preencha todos os campos!");
+    }
+
+    // Verifica em tempo real se a loja continua ativa antes de enviar
+    const { data: storeStatus } = await supabase
+      .from('app_admins')
+      .select('status')
+      .eq('slug', storeSlug)
+      .maybeSingle();
+
+    if (!storeStatus || storeStatus.status !== 'active') {
+      toast.error("Esta loja está temporariamente indisponível. Pedido cancelado.");
+      clearCart();
+      return navigate('/');
     }
 
     setProcessing(true);
