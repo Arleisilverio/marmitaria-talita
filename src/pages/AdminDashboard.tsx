@@ -53,7 +53,7 @@ export default function AdminDashboard() {
         return navigate('/');
       }
 
-      const isProfileComplete = profile && profile.name && profile.phone && profile.address;
+      const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
 
       if (adminData) {
         if (adminData.status === 'blocked') {

@@ -44,7 +44,7 @@ export default function Login() {
         api.getProfile(user.id)
       ]);
 
-      const isProfileComplete = profile && profile.name && profile.phone && profile.address;
+      const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
 
       if (adminData) {
         // Se for lojista e o perfil estiver incompleto, força a ida para a aba de perfil no app
