@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, X, Send, Bot } from 'lucide-react';
 import { api } from '../lib/api';
 
-export default function AIChat({ menuContext }: { menuContext: any }) {
+export default function AIChat({ menuContext, storeName }: { menuContext: any, storeName?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
-    { role: 'assistant', content: 'Olá! Sou a Talita. Em que posso te ajudar hoje? 🍲' }
+    { role: 'assistant', content: `Olá! Sou a assistente da ${storeName || 'loja'}. Em que posso te ajudar hoje? 🍲` }
   ]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -49,7 +49,7 @@ export default function AIChat({ menuContext }: { menuContext: any }) {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-red-600 to-orange-500 rounded-full shadow-2xl z-50 flex items-center justify-center text-white neon-glow-btn"
+        className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-r from-red-600 to-primary rounded-full shadow-2xl z-50 flex items-center justify-center text-white neon-glow-btn"
       >
         <MessageCircle className="w-7 h-7" />
       </motion.button>
@@ -67,7 +67,7 @@ export default function AIChat({ menuContext }: { menuContext: any }) {
             <div className="bg-zinc-950 p-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-orange-600/20 flex items-center justify-center border border-orange-600/30">
-                  <Bot className="text-orange-500 w-6 h-6" />
+                  <Bot className="text-primary w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-heading font-bold text-white text-sm">Talita AI</h3>
@@ -122,7 +122,7 @@ export default function AIChat({ menuContext }: { menuContext: any }) {
                 <button 
                   onClick={handleSend}
                   disabled={!message.trim() || loading}
-                  className="text-orange-500 disabled:text-zinc-700 transition-colors"
+                  className="text-primary disabled:text-zinc-700 transition-colors"
                 >
                   <Send className="w-5 h-5" />
                 </button>

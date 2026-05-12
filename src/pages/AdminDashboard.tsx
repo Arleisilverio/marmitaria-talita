@@ -7,59 +7,95 @@ import {
   Utensils, Receipt, CheckCircle, Clock, Bike, 
   Plus, Trash2, LogOut, ArrowLeft, Ban, 
   Settings, Save, Coffee, Beef, X, DollarSign,
-  ChevronRight, AlertCircle
+  ChevronRight, AlertCircle, Camera, ImageIcon, Calendar, Shield, ExternalLink,
+  Printer, MapPin
 } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import { useOrders, useMenu, useUpdateOrderStatus, useSaveMenu } from '../lib/hooks';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports' | 'marketing'>('orders');
+  const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [menu, setMenu] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [storeSlug, setStoreSlug] = useState<string>('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  
+  // Modals state
+  const [showDrinkModal, setShowDrinkModal] = useState(false);
+  const [newDrinkName, setNewDrinkName] = useState('');
+  const [newDrinkPrice, setNewDrinkPrice] = useState('');
+  const [showMeatModal, setShowMeatModal] = useState(false);
+  const [newMeatName, setNewMeatName] = useState('');
 
   useEffect(() => {
     checkAccess();
   }, []);
 
   const checkAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return navigate('/login');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return navigate('/login');
+      setUserEmail(user.email || '');
 
-    const adminData = await api.checkAdminAccess(user.email!);
-    if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
-      toast.error("Acesso negado.");
-      return navigate('/');
+      const [adminData, profile] = await Promise.all([
+        api.checkAdminAccess(user.email!),
+        api.getProfile(user.id)
+      ]);
+
+      if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
+        toast.error("Acesso negado.");
+        return navigate('/');
+      }
+
+      const isProfileComplete = !!(profile?.full_name && profile?.phone && profile?.address);
+      setIsProfileComplete(isProfileComplete);
+
+      if (adminData) {
+        if (adminData.status === 'blocked') {
+          setIsBlocked(true);
+          return;
+        }
+
+        // Apenas notificamos se o perfil estiver incompleto e não for o Super Admin
+        if (!isProfileComplete && user.email !== 'arleisilverio41@gmail.com') {
+          toast.error("Atenção: Seu perfil está incompleto. Alguns recursos podem estar limitados.", { id: 'admin-profile-warning' });
+        }
+
+        setStoreSlug(adminData.slug);
+      } else if (user.email === 'arleisilverio41@gmail.com') {
+        setStoreSlug('marmitaria-talita');
+      }
+    } catch (err) {
+      console.error("Erro no checkAccess:", err);
+      toast.error("Erro ao validar acesso.");
+      navigate('/');
+    } finally {
+      setLoadingAuth(false);
     }
-
-    if (adminData?.status === 'blocked') {
-      setIsBlocked(true);
-      setLoading(false);
-      return;
-    }
-
-    const slug = adminData?.slug || 'marmitaria-talita';
-    setStoreSlug(slug);
-    
-    const [menuData, ordersData] = await Promise.all([
-      api.getMenu(slug),
-      api.getOrders(slug)
-    ]);
-    
-    setMenu(menuData);
-    setOrders(ordersData);
-    setLoading(false);
   };
+
+  const { data: menuData, isLoading: loadingMenu } = useMenu(storeSlug);
+  const { data: orders = [], isLoading: loadingOrders } = useOrders(storeSlug);
+  const { mutateAsync: updateStatus } = useUpdateOrderStatus(storeSlug);
+  const { mutateAsync: saveMenuApi } = useSaveMenu(storeSlug);
+
+  useEffect(() => {
+    if (menuData && !menu) {
+      setMenu(menuData);
+    }
+  }, [menuData]);
+
+  const loading = loadingAuth || (!isBlocked && (loadingMenu || loadingOrders || !menu));
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
-      await api.updateOrderStatus(orderId, newStatus);
-      setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      await updateStatus({ id: orderId, status: newStatus });
       toast.success(`Pedido ${newStatus}!`);
     } catch (err) {
       toast.error("Erro ao atualizar status.");
@@ -69,31 +105,159 @@ export default function AdminDashboard() {
   const handleSaveMenu = async () => {
     setSaving(true);
     try {
-      await api.updateMenu(storeSlug, menu);
+      const savedData = await saveMenuApi(menu);
+      setMenu(savedData);
       toast.success("Cardápio salvo com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao salvar.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao salvar.");
     } finally {
       setSaving(false);
     }
   };
 
   const updatePrice = (size: 'p' | 'm' | 'g', value: string) => {
-    setMenu({ ...menu, prices: { ...menu.prices, [size]: value.replace(',', '.') } });
+    const cleaned = value.replace(/[^0-9,.]/g, '').replace(',', '.');
+    setMenu({ ...menu, prices: { ...menu.prices, [size]: cleaned } });
   };
 
   const addDrink = () => {
-    const name = prompt("Nome da bebida?");
-    const price = prompt("Preço?");
-    if (name && price) {
-      const newDrink = { id: Date.now().toString(), name, price: price.replace(',', '.') };
+    setShowDrinkModal(true);
+  };
+
+  const handleAddDrinkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newDrinkName && newDrinkPrice) {
+      // Clean price: remove R$, spaces, and handle comma
+      const cleanPrice = newDrinkPrice.replace(/[R$\s]/g, '').replace(',', '.');
+      const newDrink = { id: Date.now().toString(), name: newDrinkName, price: parseFloat(cleanPrice) || 0 };
       setMenu({ ...menu, drinks: [...(menu.drinks || []), newDrink] });
+      setShowDrinkModal(false);
+      setNewDrinkName('');
+      setNewDrinkPrice('');
     }
   };
 
   const addMeat = () => {
-    const name = prompt("Nome da carne?");
-    if (name) setMenu({ ...menu, meats: [...(menu.meats || []), name] });
+    setShowMeatModal(true);
+  };
+
+  const handleAddMeatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMeatName) {
+      setMenu({ ...menu, meats: [...(menu.meats || []), newMeatName] });
+      setShowMeatModal(false);
+      setNewMeatName('');
+    }
+  };
+
+  const handleImageUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    toast.success("Foto principal enviada. Lembre-se de salvar!");
+    const reader = new FileReader();
+    reader.onloadend = () => setMenu({ ...menu, image: reader.result });
+    reader.readAsDataURL(file);
+  };
+
+  const addSlide = () => {
+    const newSlide = { id: Date.now().toString(), image: '', title: '', description: '' };
+    setMenu({ ...menu, slides: [...(menu.slides || []), newSlide] });
+  };
+
+  const removeSlide = (id: string) => {
+    setMenu({ ...menu, slides: menu.slides.filter((s: any) => s.id !== id) });
+  };
+
+  const updateSlide = (id: string, field: string, value: string) => {
+    setMenu({ ...menu, slides: menu.slides.map((s: any) => s.id === id ? { ...s, [field]: value } : s) });
+  };
+
+  const handleSlideImageUpload = async (id: string, e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    toast.success("Foto do slide enviada. Lembre-se de salvar!");
+    const reader = new FileReader();
+    reader.onloadend = () => updateSlide(id, 'image', reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePrintOrder = (order: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error("Erro ao abrir janela de impressão.");
+
+    const itemsHtml = order.items_json?.map((item: any) => `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <span>${item.quantity}x ${typeof item.name === 'object' ? item.name.name : item.name} ${item.size ? `(${item.size})` : ''}</span>
+        <span>${formatBRL(item.price * item.quantity)}</span>
+      </div>
+    `).join('');
+
+    const content = `
+      <html>
+        <head>
+          <title>Comanda - ${order.customer_name}</title>
+          <style>
+            @page { margin: 0; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              width: 80mm; 
+              padding: 10px; 
+              margin: 0;
+              font-size: 12px;
+              color: #000;
+            }
+            .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .title { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+            .section { border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 10px; }
+            .footer { text-align: center; margin-top: 20px; font-style: italic; }
+            .bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">${menu?.title || 'Loja'}</div>
+            <div>${format(new Date(order.created_at), "dd/MM/yyyy HH:mm")}</div>
+          </div>
+          
+          <div class="section">
+            <div><span class="bold">CLIENTE:</span> ${order.customer_name}</div>
+            <div><span class="bold">TEL:</span> ${order.customer_phone}</div>
+            <div style="margin-top: 5px;"><span class="bold">ENDEREÇO:</span> ${order.delivery_address}</div>
+          </div>
+
+          <div class="section">
+            <div class="bold" style="margin-bottom: 10px;">ITENS:</div>
+            ${itemsHtml}
+          </div>
+
+          <div class="section">
+            <div style="display: flex; justify-content: space-between;">
+              <span class="bold">PAGAMENTO:</span>
+              <span>${order.payment_method.toUpperCase()}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; margin-top: 5px;">
+              <span class="bold">TOTAL:</span>
+              <span class="bold">${formatBRL(order.total_amount)}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            Obrigado pela preferência!
+          </div>
+
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
   };
 
   if (loading) return (
@@ -114,18 +278,39 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const todayOrders = orders.filter(o => isSameDay(new Date(o.created_at), new Date()));
+  const todayOrders = orders.filter(o => {
+    if (!o?.created_at) return false;
+    try {
+      return isSameDay(new Date(o.created_at), new Date());
+    } catch {
+      return false;
+    }
+  });
+  
+  // Reports Logic
+  const reportOrders = orders.filter(o => {
+    if (!o?.created_at) return false;
+    try {
+      const orderDate = format(new Date(o.created_at), 'yyyy-MM-dd');
+      return orderDate === reportDate;
+    } catch {
+      return false;
+    }
+  });
+  const deliveredOrders = reportOrders.filter(o => o.status === 'entregue');
+  const totalRevenue = deliveredOrders.reduce((acc, order) => acc + (order.total_amount || 0), 0);
+  const ticketMedio = deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* HEADER PREMIUM */}
       <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 sticky top-0 z-50 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/s/${storeSlug}`)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
+          <button onClick={() => navigate(`/${storeSlug}`)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu.title}</h1>
+            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu?.title || 'Loja'}</h1>
             <div className="flex items-center gap-2">
                <span className="text-[10px] text-primary font-black uppercase tracking-widest">Painel Admin</span>
                <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
@@ -135,12 +320,26 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <a 
+            href={`/${storeSlug}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-white/5 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors border border-white/10 flex items-center gap-2"
+          >
+            <ExternalLink className="w-4 h-4" /> Ver Loja Online
+          </a>
           <button 
-            onClick={() => {
+            onClick={async () => {
               const updated = { ...menu, isOpen: !menu.isOpen };
               setMenu(updated);
-              api.updateMenu(storeSlug, updated);
-              toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
+              try {
+                await saveMenuApi(updated);
+                toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
+              } catch (err: any) {
+                toast.error(err.message || "Erro ao alterar status da loja.");
+                // Reverte o estado visual se falhar
+                setMenu(menu);
+              }
             }}
             className={cn(
               "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
@@ -149,6 +348,11 @@ export default function AdminDashboard() {
           >
             {menu.isOpen ? 'LOJA ABERTA' : 'FECHADA'}
           </button>
+          {userEmail === 'arleisilverio41@gmail.com' && (
+            <button onClick={() => navigate('/super-admin')} className="px-4 py-2 bg-zinc-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-colors border border-white/10 flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Super Admin
+            </button>
+          )}
           <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
             <LogOut className="w-5 h-5" />
           </button>
@@ -157,7 +361,7 @@ export default function AdminDashboard() {
 
       <main className="max-w-6xl mx-auto p-4 md:p-8">
         {/* NAVEGAÇÃO DE ABAS */}
-        <div className="flex gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5">
+        <div className="flex flex-wrap gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5">
           <button onClick={() => setActiveTab('orders')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'orders' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Receipt className="w-4 h-4" /> Pedidos ({todayOrders.length})
           </button>
@@ -166,6 +370,12 @@ export default function AdminDashboard() {
           </button>
           <button onClick={() => setActiveTab('settings')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'settings' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
             <Settings className="w-4 h-4" /> Configs
+          </button>
+          <button onClick={() => setActiveTab('marketing')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'marketing' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
+            <Camera className="w-4 h-4" /> Divulgação
+          </button>
+          <button onClick={() => setActiveTab('reports')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'reports' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500")}>
+            <Calendar className="w-4 h-4" /> Relatórios
           </button>
         </div>
 
@@ -188,12 +398,31 @@ export default function AdminDashboard() {
                         <h3 className="text-white font-bold text-lg leading-tight">{order.customer_name}</h3>
                         <p className="text-xs text-zinc-400">{order.customer_phone}</p>
                       </div>
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                        order.status === 'pendente' ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
-                        order.status === 'confirmado' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        "bg-green-500/10 text-green-500 border border-green-500/20"
-                      )}>{order.status}</span>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handlePrintOrder(order)}
+                          className="p-3 bg-white/5 text-zinc-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
+                          title="Imprimir Comanda"
+                        >
+                          <Printer className="w-5 h-5" />
+                        </button>
+                        <span className={cn(
+                          "px-3 py-1 h-fit rounded-full text-[9px] font-black uppercase tracking-widest",
+                          order.status === 'pendente' ? "bg-primary/10 text-primary border border-primary/20" :
+                          order.status === 'confirmado' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                          "bg-green-500/10 text-green-500 border border-green-500/20"
+                        )}>{order.status}</span>
+                      </div>
+                    </div>
+
+                    <div className="mb-6 flex items-start gap-2 bg-zinc-950/50 p-4 rounded-2xl border border-white/5">
+                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Endereço de Entrega</p>
+                        <p className={cn("text-xs font-medium", order.delivery_address === 'RETIRADA' ? "text-secondary" : "text-white")}>
+                          {order.delivery_address}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="bg-black/30 rounded-2xl p-4 mb-6 space-y-2 flex-grow border border-white/5">
@@ -245,6 +474,72 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              <div className="glass-card p-6 md:p-8 rounded-3xl border border-white/5 space-y-6">
+                <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                  <div>
+                    <h3 className="font-heading text-xl font-bold text-white">Carrossel de Destaques (Topo)</h3>
+                    <p className="text-zinc-500 text-sm mt-1">Adicione o cardápio da semana ou promoções que ficarão rodando no topo.</p>
+                  </div>
+                  <button onClick={addSlide} className="bg-primary/10 text-primary hover:bg-primary/20 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
+                    <Plus className="w-4 h-4" /> ADICIONAR SLIDE
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {!menu.slides || menu.slides.length === 0 ? <p className="text-zinc-500 text-center py-4">Nenhum slide configurado. A imagem do Prato Principal será mostrada por padrão.</p> : null}
+                  
+                  {menu.slides?.map((slide: any) => (
+                    <div key={slide.id} className="bg-zinc-900/50 border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-6">
+                      {/* Upload Foto do Slide */}
+                      <div className="relative w-full md:w-48 h-32 bg-zinc-800 rounded-xl overflow-hidden group flex-shrink-0 border border-white/5">
+                        {slide.image ? <img src={slide.image} alt="Slide" className="w-full h-full object-cover opacity-80" /> : <ImageIcon className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-zinc-600" />}
+                        <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity text-white text-xs font-bold gap-1">
+                          <Camera className="w-4 h-4" /> Trocar
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSlideImageUpload(slide.id, e)} />
+                        </label>
+                      </div>
+
+                      {/* Textos do Slide */}
+                      <div className="flex-grow space-y-4">
+                        <div className="flex justify-between gap-4">
+                          <div className="flex-grow">
+                            <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Título Principal (Ex: Segunda-Feira)</label>
+                             <input name="slide_title" autoComplete="off" type="text" value={slide.title} onChange={e => updateSlide(slide.id, 'title', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-primary text-sm font-bold" />
+                          </div>
+                          <button onClick={() => removeSlide(slide.id)} className="text-red-500 hover:bg-red-500/10 p-3 rounded-lg h-fit transition-colors mt-5">
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-mono uppercase text-zinc-500 mb-1 block">Subtítulo / Prato (Ex: Feijoada Completa)</label>
+                           <input name="slide_description" autoComplete="off" type="text" value={slide.description} onChange={e => updateSlide(slide.id, 'description', e.target.value)} className="w-full bg-zinc-950 border border-white/5 p-3 rounded-lg text-white outline-none focus:border-primary text-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* FOTO E DADOS DO PRATO PRINCIPAL DO DIA */}
+              <div className="space-y-6 mt-8">
+                <h3 className="font-heading text-xl font-bold text-white border-b border-white/10 pb-2">Marmita do Dia (Para Venda Hoje)</h3>
+                
+                <div className="relative h-64 md:h-80 bg-zinc-900 rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
+                  {menu.image ? <img src={menu.image} alt="Menu" className="w-full h-full object-cover opacity-60" /> : <ImageIcon className="w-12 h-12 md:w-16 md:h-16 text-zinc-700" />}
+                  <div className="absolute bottom-6 left-0 w-full flex justify-center">
+                    <label className="bg-white/90 hover:bg-white backdrop-blur-md text-black px-6 py-3 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 cursor-pointer shadow-xl transition-colors">
+                      <Camera className="w-4 h-4 md:w-5 md:h-5" /> ALTERAR FOTO DO PRATO
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+                   <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Nome do Prato (Hoje)</label><input name="menu_title" autoComplete="off" type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none focus:border-primary text-lg md:text-xl" /></div>
+                   <div><label className="text-zinc-500 text-xs md:text-sm font-mono uppercase mb-2 block">Descrição Completa</label><textarea name="menu_description" autoComplete="off" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-4 md:p-5 rounded-xl text-white outline-none resize-none focus:border-primary text-base md:text-lg" rows={3} /></div>
+                </div>
+              </div>
+
               <div className="grid lg:grid-cols-2 gap-8">
                 {/* PREÇOS */}
                 <div className="glass-card p-6 md:p-8 rounded-3xl space-y-6">
@@ -255,9 +550,11 @@ export default function AdminDashboard() {
                         <label className="text-[10px] text-zinc-500 uppercase block mb-1">Tamanho {size.toUpperCase()}</label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 text-xs font-bold">R$</span>
-                          <input 
+                           <input 
+                            name={`price_${size}`}
+                            autoComplete="off"
                             type="text" 
-                            value={menu.prices[size]} 
+                            value={menu.prices?.[size] || '0'} 
                             onChange={e => updatePrice(size as any, e.target.value)}
                             className="w-full bg-black/40 border border-white/5 rounded-xl p-4 pl-8 text-white outline-none focus:border-primary transition-all"
                           />
@@ -275,7 +572,6 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {menu.meats?.map((meat: any, idx: number) => {
-                      // FIX: Handle object or string
                       const meatName = typeof meat === 'object' ? meat.name : meat;
                       return (
                         <span key={idx} className="bg-zinc-800 text-zinc-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-3 border border-white/5 group">
@@ -322,22 +618,37 @@ export default function AdminDashboard() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Nome Público da Loja</label>
-                    <input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="store_name" autoComplete="off" type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                   
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Slogan / Frase de Impacto</label>
-                    <input type="text" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="store_description" autoComplete="off" type="text" value={menu.description} onChange={e => setMenu({...menu, description: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Delivery via Motoboy</label>
+                    <button 
+                      type="button"
+                      onClick={() => setMenu({ ...menu, hasDelivery: !Boolean(menu.hasDelivery) })} 
+                      className={cn(
+                        "w-full p-4 rounded-xl font-bold text-sm uppercase tracking-widest transition-all border",
+                        menu.hasDelivery ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
+                      )}
+                    >
+                      {menu.hasDelivery ? 'ATIVADO' : 'DESATIVADO'}
+                    </button>
+                    <p className="text-[9px] text-zinc-600 uppercase font-bold text-center">Desative para esconder a opção de entrega no checkout</p>
                   </div>
 
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Taxa de Entrega (R$)</label>
-                    <input type="text" value={menu.deliveryFee} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="delivery_fee" autoComplete="off" type="text" value={menu.deliveryFee} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} disabled={!menu.hasDelivery} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary disabled:opacity-50"/>
                   </div>
 
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Tempo de Preparo (Min)</label>
-                    <input type="number" value={menu.prepTime} onChange={e => setMenu({...menu, prepTime: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input name="prep_time" autoComplete="off" type="number" value={menu.prepTime} onChange={e => setMenu({...menu, prepTime: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                 </div>
 
@@ -357,8 +668,225 @@ export default function AdminDashboard() {
               </div>
             </motion.div>
           )}
+
+          {/* ABA DIVULGAÇÃO (MARKETING) */}
+          {activeTab === 'marketing' && (
+            <motion.div key="marketing" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto space-y-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* QR CODE CARD */}
+                <div className="glass-card p-8 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-6">
+                  <div className="w-full">
+                    <h3 className="text-white font-bold text-xl mb-2">QR Code da sua Loja</h3>
+                    <p className="text-zinc-500 text-xs uppercase tracking-widest font-mono">Imprima e coloque no seu balcão</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-3xl shadow-2xl">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/${storeSlug}`)}`} 
+                      alt="QR Code da Loja"
+                      className="w-48 h-48 md:w-64 md:h-64"
+                    />
+                  </div>
+
+                  <div className="flex flex-col w-full gap-3">
+                    <button 
+                      onClick={() => window.open(`https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(`${window.location.origin}/${storeSlug}`)}`, '_blank')}
+                      className="w-full bg-white text-black py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+                    >
+                      Baixar QR Code (Alta Resolução)
+                    </button>
+                    <p className="text-[10px] text-zinc-600 uppercase font-bold">O cliente aponta a câmera e abre direto o seu cardápio</p>
+                  </div>
+                </div>
+
+                {/* LINKS E COMPARTILHAMENTO */}
+                <div className="space-y-6">
+                  <div className="glass-card p-8 rounded-3xl border border-white/5 space-y-6">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      <ExternalLink className="text-primary w-5 h-5"/> Links Diretos
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Link da sua Loja</label>
+                        <div className="flex gap-2">
+                          <input 
+                            readOnly 
+                            value={`${window.location.origin}/${storeSlug}`}
+                            className="flex-grow bg-black/40 border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-primary font-mono"
+                          />
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/${storeSlug}`);
+                              toast.success("Link copiado!");
+                            }}
+                            className="bg-primary text-white p-4 rounded-xl font-bold text-xs"
+                          >
+                            COPIAR
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Link do Shopping (Todas as Lojas)</label>
+                        <div className="flex gap-2">
+                          <input 
+                            readOnly 
+                            value={window.location.origin}
+                            className="flex-grow bg-black/40 border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-primary font-mono"
+                          />
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(window.location.origin);
+                              toast.success("Link copiado!");
+                            }}
+                            className="bg-zinc-800 text-white p-4 rounded-xl font-bold text-xs"
+                          >
+                            COPIAR
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-card p-8 rounded-3xl border border-white/5 bg-green-500/5 border-green-500/10 space-y-4">
+                    <h3 className="text-green-500 font-bold text-lg flex items-center gap-2">
+                      <Coffee className="w-5 h-5"/> WhatsApp
+                    </h3>
+                    <p className="text-zinc-400 text-sm">Envie seu cardápio para seus clientes agora mesmo.</p>
+                    <button 
+                      onClick={() => {
+                        const message = `Olá! Confira nosso cardápio online e faça seu pedido aqui: ${window.location.origin}/${storeSlug}`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+                      }}
+                      className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-green-600/20 hover:bg-green-500 transition-colors"
+                    >
+                      Enviar no WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ABA CONTABILIDADE / RELATÓRIOS */}
+          {activeTab === 'reports' && (
+            <motion.div key="reports" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+              <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-zinc-400 font-bold uppercase">Escolha a data do relatório</p>
+                    <input 
+                      name="report_date"
+                      autoComplete="off"
+                      type="date" 
+                      value={reportDate} 
+                      onChange={(e) => setReportDate(e.target.value)}
+                      className="bg-transparent text-xl font-heading font-bold text-white outline-none mt-1 [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Faturamento Dia</p>
+                  <p className="text-3xl font-heading font-black text-green-400">{formatBRL(totalRevenue)}</p>
+                </div>
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Ticket Médio</p>
+                  <p className="text-3xl font-heading font-black text-white">{formatBRL(ticketMedio)}</p>
+                </div>
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Marmitas Entregues</p>
+                  <p className="text-3xl font-heading font-black text-white">{deliveredOrders.length}</p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl border border-white/5 overflow-hidden mt-8 shadow-xl">
+                <div className="p-4 border-b border-white/5 bg-zinc-950 flex justify-between items-center">
+                  <h3 className="font-bold text-white font-heading">Histórico Detalhado</h3>
+                  <span className="text-xs text-zinc-500 font-mono bg-white/5 px-2 py-1 rounded">{reportDate ? format(parseISO(reportDate), 'dd/MM/yyyy') : '-'}</span>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {reportOrders.length === 0 ? (
+                    <div className="p-12 text-center text-zinc-500">
+                      <Receipt className="w-8 h-8 mx-auto mb-3 opacity-20"/>
+                      <p>Nenhum registro encontrado para esta data.</p>
+                    </div>
+                  ) : (
+                    reportOrders.map(order => (
+                      <div key={order.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/5 transition-colors">
+                        <div>
+                          <p className="font-bold text-white">{order.customer_name}</p>
+                          <p className="text-xs text-zinc-500 font-mono mt-1">
+                            {format(new Date(order.created_at), "HH:mm")} • {order.payment_method?.toUpperCase()}
+                          </p>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <p className="font-bold text-primary text-lg">{formatBRL(order.total_amount)}</p>
+                          <p className={`text-[10px] uppercase font-bold mt-1 inline-block px-2 py-0.5 rounded ${order.status === 'entregue' ? 'bg-green-500/10 text-green-500' : 'bg-primary/10 text-primary'}`}>
+                            {order.status}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
+
+      {/* MODAL DE BEBIDA */}
+      <AnimatePresence>
+        {showDrinkModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-zinc-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2"><Coffee className="w-5 h-5 text-primary"/> Nova Bebida/Extra</h3>
+                <button onClick={() => setShowDrinkModal(false)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5"/></button>
+              </div>
+              <form onSubmit={handleAddDrinkSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome do Item</label>
+                   <input name="new_drink_name" autoComplete="off" autoFocus type="text" value={newDrinkName} onChange={e => setNewDrinkName(e.target.value)} placeholder="Ex: Coca-Cola 2L" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Preço (R$)</label>
+                   <input name="new_drink_price" autoComplete="off" type="text" value={newDrinkPrice} onChange={e => setNewDrinkPrice(e.target.value)} placeholder="Ex: 12.00" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE CARNE */}
+      <AnimatePresence>
+        {showMeatModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-zinc-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2"><Beef className="w-5 h-5 text-primary"/> Nova Opção de Carne</h3>
+                <button onClick={() => setShowMeatModal(false)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5"/></button>
+              </div>
+              <form onSubmit={handleAddMeatSubmit} className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 block">Nome da Carne</label>
+                  <input name="new_meat_name" autoComplete="off" autoFocus type="text" value={newMeatName} onChange={e => setNewMeatName(e.target.value)} placeholder="Ex: Bife a Cavalo" className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary" required />
+                </div>
+                <button type="submit" className="w-full bg-primary py-4 rounded-xl font-black text-white uppercase text-sm shadow-lg shadow-primary/20 mt-2">Adicionar</button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

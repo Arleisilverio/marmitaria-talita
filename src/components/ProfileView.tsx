@@ -7,7 +7,12 @@ import { User, MapPin, Phone, LogOut, Camera, Save, Edit2, ShieldAlert } from 'l
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'react-hot-toast';
 
-export default function ProfileView() {
+interface ProfileViewProps {
+  isMandatory?: boolean;
+  onSaveSuccess?: () => void;
+}
+
+export default function ProfileView({ isMandatory = false, onSaveSuccess }: ProfileViewProps) {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +42,13 @@ export default function ProfileView() {
           address: data.address || '',
           avatar_url: data.avatar_url || ''
         });
+        
+        // Se for obrigatório e algum campo estiver faltando, entra em edição
+        if (isMandatory && (!data.full_name || !data.phone || !data.address)) {
+          setIsEditing(true);
+        }
+      } else if (isMandatory) {
+        setIsEditing(true);
       }
     }
     setLoading(false);
@@ -67,6 +79,7 @@ export default function ProfileView() {
       if (error) throw error;
       toast.success("Perfil atualizado com sucesso!");
       setIsEditing(false);
+      if (onSaveSuccess) onSaveSuccess();
     } catch (err: any) {
       toast.error("Erro ao salvar perfil.");
       console.error(err);
@@ -103,6 +116,22 @@ export default function ProfileView() {
 
   return (
     <div className="px-container pt-8 space-y-6 pb-24 max-w-2xl mx-auto">
+      {isMandatory && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-primary/10 border border-primary/20 p-4 rounded-2xl flex items-start gap-4 mb-8"
+        >
+          <div className="bg-primary/20 p-2 rounded-xl text-primary">
+            <ShieldAlert size={20} />
+          </div>
+          <div>
+            <h4 className="text-white font-bold text-sm">Cadastro Obrigatório</h4>
+            <p className="text-zinc-400 text-xs mt-1">Para garantir a entrega correta do seu pedido, preencha seu nome, telefone e endereço abaixo.</p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="flex flex-col items-center gap-4 mb-8">
         <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center shadow-2xl overflow-hidden border-4 border-surface">
           {profile.avatar_url ? (
@@ -121,7 +150,7 @@ export default function ProfileView() {
         <div className="text-center">
           <h2 className="font-heading text-2xl md:text-3xl font-bold text-white flex items-center justify-center gap-2">
             {profile.full_name || 'Usuário'}
-            {isAdmin && <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-orange-500" title="Administrador" />}
+            {isAdmin && <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-primary" title="Administrador" />}
           </h2>
           <p className="text-zinc-400 text-sm mt-1">{user.email}</p>
         </div>
@@ -140,9 +169,18 @@ export default function ProfileView() {
       <div className="space-y-4">
         <div className="glass-card p-5 md:p-8 rounded-2xl md:rounded-3xl space-y-4 md:space-y-6">
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><User className="w-3 h-3 md:w-4 md:h-4"/> Nome Completo</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <User className="w-3 h-3 md:w-4 md:h-4"/> Nome Completo
+              {isMandatory && !profile.full_name && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <input type="text" value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none" placeholder="Como devemos te chamar?" />
+              <input 
+                type="text" 
+                value={profile.full_name} 
+                onChange={e => setProfile({...profile, full_name: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.full_name ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none transition-colors`} 
+                placeholder="Como devemos te chamar?" 
+              />
             ) : (
               <p className="text-white font-bold md:text-lg">{profile.full_name || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}
@@ -151,9 +189,18 @@ export default function ProfileView() {
           <div className="h-px bg-white/5 w-full"></div>
 
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Phone className="w-3 h-3 md:w-4 md:h-4"/> Telefone / WhatsApp</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <Phone className="w-3 h-3 md:w-4 md:h-4"/> Telefone / WhatsApp
+              {isMandatory && !profile.phone && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <input type="text" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none" placeholder="(00) 00000-0000" />
+              <input 
+                type="text" 
+                value={profile.phone} 
+                onChange={e => setProfile({...profile, phone: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.phone ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none transition-colors`} 
+                placeholder="(00) 00000-0000" 
+              />
             ) : (
               <p className="text-white font-bold md:text-lg">{profile.phone || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}
@@ -162,9 +209,18 @@ export default function ProfileView() {
           <div className="h-px bg-white/5 w-full"></div>
 
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><MapPin className="w-3 h-3 md:w-4 md:h-4"/> Endereço de Entrega</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <MapPin className="w-3 h-3 md:w-4 md:h-4"/> Endereço de Entrega
+              {isMandatory && !profile.address && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <textarea value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none resize-none" rows={3} placeholder="Rua, Número, Bairro, Referência" />
+              <textarea 
+                value={profile.address} 
+                onChange={e => setProfile({...profile, address: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.address ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none resize-none transition-colors`} 
+                rows={3} 
+                placeholder="Rua, Número, Bairro, Referência" 
+              />
             ) : (
               <p className="text-white font-bold text-sm md:text-base leading-relaxed">{profile.address || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}

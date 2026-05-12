@@ -1,137 +1,244 @@
-"use client";
-
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
-import { Leaf, ArrowLeft, ShieldCheck } from 'lucide-react';
-import { motion } from 'motion/react';
+import { 
+  LogIn, Mail, Lock, Sparkles, 
+  ChevronRight, ArrowLeft, ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { motion } from 'motion/react';
 
 export default function Login() {
-  const navigate = useNavigate();
-  const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || password.length < 6) {
-      toast.error("Insira um email válido e senha de no mínimo 6 caracteres.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (isLoginMode) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw new Error("Email ou senha incorretos.");
-        toast.success("Bem-vindo de volta! 🍲");
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw new Error("Erro ao criar conta. Email já em uso ou inválido.");
-        toast.success("Conta criada com sucesso! 🎉");
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        checkRedirect(user.email!).catch(err => {
+          console.error("Erro no redirecionamento:", err);
+          toast.error("Erro ao carregar seu perfil.");
+        });
       }
-      
-      // REDIRECIONAMENTO INTELIGENTE SAAS
-      if (email === 'arleisilverio41@gmail.com') {
-        // É o Criador do App
+    });
+  }, []);
+
+  const checkRedirect = async (userEmail: string) => {
+    try {
+      if (userEmail === 'arleisilverio41@gmail.com') {
         navigate('/super-admin');
+        return;
+      }
+
+      // Buscar o usuário autenticado para obter o ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Buscar dados de admin e perfil em paralelo
+      const [adminData, profile] = await Promise.all([
+        api.checkAdminAccess(userEmail),
+        api.getProfile(user.id)
+      ]);
+
+      const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
+
+      if (adminData) {
+        // Redireciona sempre para o painel administrativo
+        navigate('/admin');
       } else {
-        // Verifica se é dono de algum comércio
-        const adminData = await api.checkAdminAccess(email);
-        if (adminData) {
-          navigate('/admin');
-        } else {
-          // É apenas um cliente final
-          navigate('/');
-        }
+        // Cliente comum vai para a home (Marketplace)
+        navigate('/');
+      }
+    } catch (err) {
+      console.error("Erro no checkRedirect:", err);
+      toast.error("Erro ao identificar seu perfil. Redirecionando...");
+      navigate('/');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      if (data.user) {
+        await checkRedirect(data.user.email!);
       }
       
     } catch (err: any) {
-      toast.error(err.message);
+      console.error("Login error:", err);
+      toast.error(err.message || "Erro ao entrar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      toast.error("Por favor, preencha email e senha para criar uma conta.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      
+      if (data.session && data.user) {
+        checkRedirect(data.user.email!);
+      } else {
+        toast.success("Conta criada! Verifique seu email para confirmar.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao cadastrar.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative">
-      <button 
-        onClick={() => navigate(-1)} 
-        className="absolute top-6 left-6 text-zinc-500 hover:text-white p-2 bg-white/5 rounded-full backdrop-blur-md"
-      >
-        <ArrowLeft className="w-6 h-6" />
-      </button>
-
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="w-full max-w-md space-y-8 text-center"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-20 h-20 bg-gradient-to-br from-primary to-tertiary rounded-3xl flex items-center justify-center text-white shadow-2xl">
-            <Leaf size={40} />
-          </div>
-          <h1 className="font-heading text-3xl font-black text-white tracking-tighter mt-2">
-            MARMITARIA TALITA
-          </h1>
-          <p className="text-on-surface-variant text-sm">Sabor & Tradição Caseira</p>
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row overflow-hidden">
+      
+      {/* LADO ESQUERDO: VISUAL (APENAS DESKTOP) */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-zinc-900 items-center justify-center p-20 overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=1500" 
+            className="w-full h-full object-cover opacity-20 blur-sm scale-110" 
+            alt="Fundo"
+          />
+          <div className="absolute inset-0 bg-gradient-to-tr from-black via-black/80 to-primary/20" />
         </div>
 
-        <form onSubmit={handleAuth} className="glass-card p-8 rounded-3xl border border-white/5 shadow-2xl text-left space-y-6">
-          
-          <div className="space-y-4">
-            <div>
-              <label className="font-mono text-[10px] uppercase text-zinc-500 tracking-widest mb-2 block">Seu E-mail</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="exemplo@email.com" 
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 text-white focus:border-primary outline-none transition-colors"
-                required
-              />
-            </div>
+        <div className="relative z-10 text-center max-w-lg">
+           <div className="w-20 h-20 bg-primary rounded-[32px] flex items-center justify-center mb-10 mx-auto shadow-2xl shadow-primary/30 transform -rotate-12">
+             <Sparkles className="w-10 h-10 text-white" />
+           </div>
+           <h1 className="text-6xl font-black text-white leading-tight uppercase tracking-tighter mb-6">
+             O sabor da comida <span className="text-primary italic">Caseira</span> no seu dia a dia.
+           </h1>
+           <p className="text-zinc-500 text-lg font-medium leading-relaxed">
+             Acesse sua conta para gerenciar seus pedidos e ganhar pontos de fidelidade exclusivos.
+           </p>
+        </div>
 
-            <div>
-              <label className="font-mono text-[10px] uppercase text-zinc-500 tracking-widest mb-2 block">Senha</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Mínimo de 6 caracteres" 
-                className="w-full bg-zinc-900 border border-white/10 rounded-xl p-4 text-white focus:border-primary outline-none transition-colors"
-                required
-              />
-            </div>
-          </div>
+        {/* FLOATING CARDS */}
+        <div className="absolute top-20 right-20 bg-zinc-950/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl animate-bounce-slow">
+           <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
+               <ShieldCheck className="w-5 h-5 text-green-500" />
+             </div>
+             <div className="text-left">
+               <p className="text-white text-xs font-black uppercase">Entrega Garantida</p>
+               <p className="text-zinc-500 text-[10px]">100% dos pedidos entregues</p>
+             </div>
+           </div>
+        </div>
+      </div>
 
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-red-600 to-orange-500 py-4 rounded-xl font-heading font-bold text-white shadow-[0_10px_30px_rgba(234,88,12,0.3)] disabled:opacity-50 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-2"
-          >
-            {loading ? 'Aguarde...' : (isLoginMode ? 'ENTRAR' : 'CRIAR MINHA CONTA')}
-          </button>
-          
-          <div className="text-center pt-2">
-            <button 
-              type="button"
-              onClick={() => setIsLoginMode(!isLoginMode)}
-              className="text-zinc-400 hover:text-white transition-colors text-sm"
-            >
-              {isLoginMode ? 'Não tem conta? Cadastre-se' : 'Já tem uma conta? Faça Login'}
-            </button>
-          </div>
-        </form>
+      {/* LADO DIREITO: FORMULÁRIO */}
+      <div className="flex-grow flex items-center justify-center p-8 lg:p-24 relative">
         
-        <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-600 uppercase font-mono tracking-widest">
-          <ShieldCheck className="w-4 h-4" />
-          Conexão Segura
-        </div>
-      </motion.div>
+        {/* BOTÃO VOLTAR */}
+        <button 
+          onClick={() => navigate('/')}
+          className="absolute top-8 left-8 lg:top-12 lg:left-12 flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group"
+        >
+          <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-primary transition-all">
+            <ArrowLeft className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest">Início</span>
+        </button>
+
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="w-full max-w-sm space-y-10"
+        >
+          <div className="text-center lg:text-left">
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Bem-vindo de volta</h2>
+            <p className="text-zinc-500 text-sm font-medium">Informe suas credenciais para continuar</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-4">
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-primary transition-colors">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <input 
+                  required
+                  type="email" 
+                  placeholder="Seu email"
+                  className="w-full bg-zinc-900 border border-white/5 p-5 pl-12 rounded-2xl text-white outline-none focus:border-primary focus:bg-zinc-800 transition-all placeholder:text-zinc-700"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-primary transition-colors">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <input 
+                  required
+                  type="password" 
+                  placeholder="Sua senha"
+                  className="w-full bg-zinc-900 border border-white/5 p-5 pl-12 rounded-2xl text-white outline-none focus:border-primary focus:bg-zinc-800 transition-all placeholder:text-zinc-700"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 pt-4">
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary py-5 rounded-2xl font-black text-white text-xs uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>Acessar Conta <ChevronRight className="w-4 h-4" /></>
+                )}
+              </button>
+
+              <button 
+                type="button"
+                onClick={handleSignUp}
+                className="w-full bg-white/5 py-5 rounded-2xl font-black text-zinc-400 text-xs uppercase tracking-widest border border-white/5 hover:bg-white/10 transition-all"
+              >
+                Criar Nova Conta
+              </button>
+            </div>
+          </form>
+
+          <div className="pt-6 flex flex-col items-center gap-6">
+             <div className="flex items-center gap-4 w-full">
+               <div className="h-[1px] bg-white/5 flex-grow" />
+               <span className="text-[10px] text-zinc-700 font-black uppercase">Segurança</span>
+               <div className="h-[1px] bg-white/5 flex-grow" />
+             </div>
+             <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-medium">
+                <AlertCircle className="w-3 h-3 text-zinc-700" />
+                Seus dados estão protegidos por criptografia ponta-a-ponta.
+             </div>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

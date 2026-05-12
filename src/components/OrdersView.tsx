@@ -7,30 +7,22 @@ import { Package, Gift, Clock, CheckCircle } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { formatBRL } from '../lib/utils';
 import { format } from 'date-fns';
+import { useMyOrders } from '../lib/hooks';
 
 export default function OrdersView() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    fetchMyOrders();
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      setLoadingAuth(false);
+    });
   }, []);
 
-  const fetchMyOrders = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-    if (user) {
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      setOrders(data || []);
-    }
-    setLoading(false);
-  };
+  const { data: orders = [], isLoading: loadingOrders } = useMyOrders(user?.id);
+  const loading = loadingAuth || (user && loadingOrders);
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Carregando...</div>;
 
@@ -40,9 +32,9 @@ export default function OrdersView() {
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-24 h-24 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-full flex items-center justify-center mb-6 shadow-xl border border-orange-500/30"
+          className="w-24 h-24 bg-gradient-to-br from-primary/20 to-red-500/20 rounded-full flex items-center justify-center mb-6 shadow-xl border border-primary/30"
         >
-          <Gift className="text-orange-500 w-12 h-12" />
+          <Gift className="text-primary w-12 h-12" />
         </motion.div>
         <h2 className="font-heading text-2xl font-bold text-white mb-3">Histórico e Prêmios</h2>
         <p className="text-on-surface-variant text-sm max-w-[320px] mx-auto leading-relaxed mb-8">
@@ -50,7 +42,7 @@ export default function OrdersView() {
         </p>
         <button 
           onClick={() => navigate('/login')}
-          className="w-full max-w-[320px] bg-gradient-to-r from-red-600 to-orange-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 transition-transform"
+          className="w-full max-w-[320px] bg-gradient-to-r from-red-600 to-primary text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:scale-105 transition-transform"
         >
           FAZER LOGIN / CADASTRAR
         </button>
@@ -86,7 +78,7 @@ export default function OrdersView() {
                   <p className="font-bold text-white text-lg">{formatBRL(order.total_amount)}</p>
                 </div>
                 <div className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold flex items-center gap-1 ${
-                  order.status === 'pendente' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/30' : 
+                  order.status === 'pendente' ? 'bg-primary/10 text-primary border border-primary/30' : 
                   order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 
                   order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 
                   'bg-red-500/10 text-red-500 border border-red-500/30'

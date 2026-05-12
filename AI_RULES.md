@@ -13,8 +13,7 @@ This document outlines the project's tech stack and the rules for AI assistants 
 - **Backend**: [Express](https://expressjs.com/) for server-side logic and API endpoints (running via `server.ts`).
 - **AI Integration**: [Google Generative AI](https://www.npmjs.com/package/@google/genai) for AI-powered features.
 - **Supabase Edge Functions**: For secure AI processing (OpenAI) and Telegram Webhooks.
-- **Date Handling**: [date-fns](https://date-fns.org/) for robust date manipulation and formatting.
-- **Utilities**: `clsx` and `tailwind-merge` for clean conditional class management.
+- **Date Handling**: [date-fns](https://date-fns.org/) for robust date manipulation and formatting.\n- **Utilities**: `clsx` and `tailwind-merge` for clean conditional class management.
 
 ## Development Rules
 
@@ -32,12 +31,10 @@ This document outlines the project's tech stack and the rules for AI assistants 
 ### 3. Routing & State
 - **Centralized Routes**: Keep all route definitions in `src/App.tsx`.
 - **Navigation**: Use the `Link` and `useNavigate` hooks from `react-router-dom` for internal navigation.
-- **State Management**: Use React's built-in `useState` and `useContext` for state management. Avoid introducing heavy state libraries (like Redux) unless the complexity justifies it.
-
-### 4. Code Quality
+- **State Management**: Use React's built-in `useState` and `useContext` for state management. Avoid introducing heavy state libraries (like Redux) unless the complexity justifies it.\n\n### 4. Code Quality
 - **TypeScript**: Always provide proper types for props, state, and function parameters. Avoid using `any`.
 - **Icons**: Always use `lucide-react` for icons.
-- **Clean Code**: Follow the principle of "minimum complexity." Don't over-engineer solutions or add abstractions for one-time use cases.
+- **Clean Code**: Follow the principle of \"minimum complexity.\" Don't over-engineer solutions or add abstractions for one-time use cases.
 - **API Calls**: Centralize API logic in `src/lib/api.ts` or similar utility files.
 
 ### 5. Interaction

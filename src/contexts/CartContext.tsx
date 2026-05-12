@@ -1,76 +1,91 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type CartItem = {
+interface CartItem {
   id: string;
   name: string;
-  size?: 'P' | 'M' | 'G';
-  price: number | string;
+  price: number;
   quantity: number;
-  type: 'dish' | 'drink';
+  image_url?: string;
+  type?: 'dish' | 'drink';
   observation?: string;
   meats?: string[];
+  size?: string;
 };
 
-interface CartContextType {
+interface CartContextData {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
+  addItem: (product: any) => void;
   removeItem: (id: string, size?: string) => void;
   updateQuantity: (id: string, size: string | undefined, delta: number) => void;
   clearCart: () => void;
   total: number;
+  storeSlug: string;
+  setStoreSlug: (slug: string) => void;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+const CartContext = createContext<CartContextData>({} as CartContextData);
 
-export const CartProvider = ({ children }: { children: ReactNode }) => {
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [storeSlug, setStoreSlugState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('cart_store_slug') || '';
+    }
+    return '';
+  });
 
-  const addItem = (newItem: CartItem) => {
-    setItems(current => {
-      // Find if same item with same size exists
-      const existingKey = current.findIndex(
-        i => i.id === newItem.id && i.size === newItem.size
-      );
-      if (existingKey > -1) {
-        const updated = [...current];
-        updated[existingKey].quantity += newItem.quantity;
-        return updated;
+  const setStoreSlug = (slug: string) => {
+    setStoreSlugState(slug);
+    localStorage.setItem('cart_store_slug', slug);
+  };
+
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) setItems(JSON.parse(savedCart));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(items));
+  }, [items]);
+
+  const addItem = (product: any) => {
+    setItems(prev => {
+      const existing = prev.find(i => i.id === product.id && i.size === product.size);
+      if (existing) {
+        return prev.map(i => (i.id === product.id && i.size === product.size) ? { ...i, quantity: i.quantity + 1 } : i);
       }
-      return [...current, newItem];
+      return [...prev, { ...product, quantity: 1 }];
     });
   };
 
   const removeItem = (id: string, size?: string) => {
-    setItems(current => current.filter(i => !(i.id === id && i.size === size)));
+    setItems(prev => prev.filter(i => !(i.id === id && i.size === size)));
   };
 
   const updateQuantity = (id: string, size: string | undefined, delta: number) => {
-    setItems(current => current.map(item => {
-      if (item.id === id && item.size === size) {
-        const newQ = item.quantity + delta;
-        return newQ > 0 ? { ...item, quantity: newQ } : item;
-      }
-      return item;
-    }));
+    setItems(prev => {
+      return prev.map(item => {
+        if (item.id === id && item.size === size) {
+          const newQty = item.quantity + delta;
+          return newQty > 0 ? { ...item, quantity: newQty } : null;
+        }
+        return item;
+      }).filter((i): i is CartItem => i !== null);
+    });
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    localStorage.removeItem('cart');
+  };
 
-  // Forçando que o preço seja tratado como NÚMERO e não texto
-  const total = items.reduce((acc, item) => {
-    const itemPrice = Number(item.price) || 0;
-    return acc + (itemPrice * item.quantity);
-  }, 0);
+  const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, total, storeSlug, setStoreSlug }}>
       {children}
     </CartContext.Provider>
   );
 };
 
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (context === undefined) throw new Error('useCart must be used within CartProvider');
-  return context;
-};
+export const useCart = () => useContext(CartContext);
