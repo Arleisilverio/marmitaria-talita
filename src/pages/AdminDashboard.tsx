@@ -53,7 +53,8 @@ export default function AdminDashboard() {
         return navigate('/');
       }
 
-      const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
+      const isProfileComplete = !!(profile?.full_name && profile?.phone && profile?.address);
+      setIsProfileComplete(isProfileComplete);
 
       if (adminData) {
         if (adminData.status === 'blocked') {
@@ -61,10 +62,9 @@ export default function AdminDashboard() {
           return;
         }
 
-        // Se o perfil do lojista estiver incompleto, redireciona para a conclusão do perfil
-        if (!isProfileComplete) {
-          toast.error("Por favor, preencha seus dados de perfil antes de acessar o painel.");
-          return navigate(`/${adminData.slug}`, { state: { tab: 'profile' } });
+        // Apenas notificamos se o perfil estiver incompleto e não for o Super Admin
+        if (!isProfileComplete && user.email !== 'arleisilverio41@gmail.com') {
+          toast.error("Atenção: Seu perfil está incompleto. Alguns recursos podem estar limitados.", { id: 'admin-profile-warning' });
         }
 
         setStoreSlug(adminData.slug);

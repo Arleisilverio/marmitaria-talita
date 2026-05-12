@@ -169,9 +169,18 @@ export default function ProfileView({ isMandatory = false, onSaveSuccess }: Prof
       <div className="space-y-4">
         <div className="glass-card p-5 md:p-8 rounded-2xl md:rounded-3xl space-y-4 md:space-y-6">
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><User className="w-3 h-3 md:w-4 md:h-4"/> Nome Completo</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <User className="w-3 h-3 md:w-4 md:h-4"/> Nome Completo
+              {isMandatory && !profile.full_name && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <input type="text" value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none" placeholder="Como devemos te chamar?" />
+              <input 
+                type="text" 
+                value={profile.full_name} 
+                onChange={e => setProfile({...profile, full_name: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.full_name ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none transition-colors`} 
+                placeholder="Como devemos te chamar?" 
+              />
             ) : (
               <p className="text-white font-bold md:text-lg">{profile.full_name || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}
@@ -180,9 +189,18 @@ export default function ProfileView({ isMandatory = false, onSaveSuccess }: Prof
           <div className="h-px bg-white/5 w-full"></div>
 
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Phone className="w-3 h-3 md:w-4 md:h-4"/> Telefone / WhatsApp</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <Phone className="w-3 h-3 md:w-4 md:h-4"/> Telefone / WhatsApp
+              {isMandatory && !profile.phone && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <input type="text" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none" placeholder="(00) 00000-0000" />
+              <input 
+                type="text" 
+                value={profile.phone} 
+                onChange={e => setProfile({...profile, phone: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.phone ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none transition-colors`} 
+                placeholder="(00) 00000-0000" 
+              />
             ) : (
               <p className="text-white font-bold md:text-lg">{profile.phone || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}
@@ -191,9 +209,18 @@ export default function ProfileView({ isMandatory = false, onSaveSuccess }: Prof
           <div className="h-px bg-white/5 w-full"></div>
 
           <div>
-            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><MapPin className="w-3 h-3 md:w-4 md:h-4"/> Endereço de Entrega</label>
+            <label className="font-mono text-[10px] md:text-xs text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <MapPin className="w-3 h-3 md:w-4 md:h-4"/> Endereço de Entrega
+              {isMandatory && !profile.address && <span className="text-red-500 text-[10px] ml-auto">* Obrigatório</span>}
+            </label>
             {isEditing ? (
-              <textarea value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} className="w-full bg-zinc-900 border border-white/10 p-3 md:p-4 rounded-xl text-white outline-none resize-none" rows={3} placeholder="Rua, Número, Bairro, Referência" />
+              <textarea 
+                value={profile.address} 
+                onChange={e => setProfile({...profile, address: e.target.value})} 
+                className={`w-full bg-zinc-900 border ${isMandatory && !profile.address ? 'border-red-500/50' : 'border-white/10'} p-3 md:p-4 rounded-xl text-white outline-none resize-none transition-colors`} 
+                rows={3} 
+                placeholder="Rua, Número, Bairro, Referência" 
+              />
             ) : (
               <p className="text-white font-bold text-sm md:text-base leading-relaxed">{profile.address || <span className="text-zinc-600 italic font-normal">Não informado</span>}</p>
             )}

@@ -47,13 +47,8 @@ export default function Login() {
       const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
 
       if (adminData) {
-        // Se for lojista e o perfil estiver incompleto, força a ida para a aba de perfil no app
-        if (!isProfileComplete) {
-          navigate(`/${adminData.slug}`, { state: { tab: 'profile' } });
-          toast.success("Bem-vindo! Por favor, complete seu cadastro para liberar o painel administrativo.");
-        } else {
-          navigate('/admin');
-        }
+        // Redireciona sempre para o painel administrativo
+        navigate('/admin');
       } else {
         // Cliente comum vai para a home (Marketplace)
         navigate('/');

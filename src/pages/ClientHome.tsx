@@ -72,11 +72,14 @@ export default function ClientHome() {
       setIsProfileComplete(complete);
       setCheckingProfile(false);
       
+      // Super Admin nunca é bloqueado
+      if (isSuper) return;
+
       if (!complete) {
-        setActiveTab('profile');
+        // Se estiver vindo do login ou forçado, mostramos o aviso, mas não travamos a navegação
         const msg = isAdmin 
-          ? "Bem-vindo! Complete seu perfil para liberar o acesso ao seu painel administrativo."
-          : "Por favor, complete seu cadastro para continuar.";
+          ? "Bem-vindo! Recomendamos completar seu perfil para garantir a melhor experiência."
+          : "Lembre-se de completar seu cadastro para poder fazer pedidos.";
         
         toast.error(msg, { id: 'profile-warning', duration: 6000 });
       }
@@ -193,14 +196,14 @@ export default function ClientHome() {
 
           <nav className="hidden md:flex items-center gap-8">
             <button 
-              onClick={() => isProfileComplete && setActiveTab('menu')} 
-              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'menu' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+              onClick={() => setActiveTab('menu')} 
+              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}
             >
               Cardápio
             </button>
             <button 
-              onClick={() => isProfileComplete && setActiveTab('orders')} 
-              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'orders' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+              onClick={() => setActiveTab('orders')} 
+              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}
             >
               Pedidos
             </button>
@@ -320,7 +323,16 @@ export default function ClientHome() {
       {/* CARRINHO FLUTUANTE */}
       {items.length > 0 && activeTab === 'menu' && (
         <div className="fixed bottom-24 md:bottom-8 left-0 right-0 px-container z-40 md:flex md:justify-center">
-          <button onClick={() => navigate('/checkout')} className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl">
+          <button 
+            onClick={() => {
+              if (!isProfileComplete && !isSuperAdmin) {
+                setActiveTab('profile');
+                return toast.error("Por favor, complete seu perfil para prosseguir para o checkout.");
+              }
+              navigate('/checkout');
+            }} 
+            className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl"
+          >
             <span>CARRINHO ({items.length})</span>
             <span className="text-xl">{formatBRL(total)}</span>
           </button>
@@ -330,14 +342,14 @@ export default function ClientHome() {
       {/* BARRA MOBILE */}
       <nav className="md:hidden bg-zinc-950 fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
         <button 
-          onClick={() => isProfileComplete && setActiveTab('menu')} 
-          className={cn(activeTab === 'menu' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+          onClick={() => setActiveTab('menu')} 
+          className={activeTab === 'menu' ? "text-primary" : "text-zinc-500"}
         >
           <Utensils/><span className="text-[10px] block font-bold">Cardápio</span>
         </button>
         <button 
-          onClick={() => isProfileComplete && setActiveTab('orders')} 
-          className={cn(activeTab === 'orders' ? "text-primary" : "text-zinc-500", !isProfileComplete && "opacity-30 cursor-not-allowed")}
+          onClick={() => setActiveTab('orders')} 
+          className={activeTab === 'orders' ? "text-primary" : "text-zinc-500"}
         >
           <Receipt/><span className="text-[10px] block font-bold">Pedidos</span>
         </button>
