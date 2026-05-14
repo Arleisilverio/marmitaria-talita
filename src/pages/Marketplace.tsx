@@ -39,7 +39,8 @@ export default function Marketplace() {
     await supabase.auth.signOut();
     setUser(null);
     toast.success("Você saiu da conta.");
-    navigate('/');
+    // Redireciona para a página de login
+    navigate('/login', { replace: true });
   };
 
   if (loading) {
@@ -220,13 +221,20 @@ export default function Marketplace() {
               <p className="text-zinc-500 font-medium max-w-xs mx-auto mb-8">
                 Ainda não temos marmitarias disponíveis. Se você é lojista, entre em contato com o administrador para criar sua loja.
               </p>
-              {user && (
+              {user ? (
                 <button 
                   onClick={handleLogout}
                   className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl text-red-500 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-500/20 transition-colors"
                 >
                   <LogOut className="w-5 h-5" />
                   Sair da Conta
+                </button>
+              ) : (
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="w-full bg-primary py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/80 transition-colors"
+                >
+                  Fazer Login
                 </button>
               )}
             </div>
