@@ -44,7 +44,7 @@ const ImageUploader = ({ value, onChange, label }: { value: string; onChange: (v
         </div>
       ) : (
         <div onClick={() => inputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-          <Upload className="w-8 h-8 text-zinc-600 mb-2" /><span className="text-zinc-500 text-xs">Clique para escolher</span>
+          <Upload className="w-8 h-8 text-zinc-600 mb-2" /><span className="text-zinc-500 text-xs">Clique para escolher do celular ou computador</span>
         </div>
       )}
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
@@ -58,8 +58,8 @@ const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: D
   const [image, setImage] = useState(drink?.image || '');
   return (
     <div className="space-y-4">
-      <ImageUploader value={image} onChange={setImage} label="Foto da Bebida" />
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Refrigerante" /></div>
+      <ImageUploader value={image} onChange={setImage} label="Foto da Bebida (opcional)" />
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome da Bebida</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Refrigerante Guaraná" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Preço (R$)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="5.90" /></div>
       <div className="flex gap-3 pt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
@@ -73,7 +73,7 @@ const MeatEditor = ({ meat, onSave, onCancel }: { meat?: Meat; onSave: (m: Meat)
   const [name, setName] = useState(meat?.name || '');
   return (
     <div className="space-y-4">
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango" /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome da Carne/Complemento</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango Grelhado" /></div>
       <div className="flex gap-3 pt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim() }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
@@ -89,8 +89,8 @@ const SlideEditor = ({ slide, onSave, onCancel }: { slide?: Slide; onSave: (s: S
   return (
     <div className="space-y-4">
       <ImageUploader value={image} onChange={setImage} label="Imagem do Slide" />
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Marmita do Dia" /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} placeholder="Ex: Especial de hoje" /></div>
       <div className="flex gap-3 pt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => onSave({ id: slide?.id || Date.now().toString(), image, title, description })} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{slide ? 'Salvar' : 'Adicionar'}</button>
@@ -129,23 +129,23 @@ const GeneralSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuDat
     <div className="space-y-6">
       <div className="bg-zinc-800/50 p-6 rounded-2xl border border-white/5">
         <div className="flex justify-between items-center">
-          <div><h4 className="text-white font-bold text-lg">Status da Loja</h4><p className="text-zinc-500 text-xs mt-1">Marque se você está aberto</p></div>
+          <div><h4 className="text-white font-bold text-lg">Status da Loja</h4><p className="text-zinc-500 text-xs mt-1">Marque se você está aberto para receber pedidos</p></div>
           <button onClick={() => setLocalMenu({ ...localMenu, isOpen: !localMenu.isOpen })} className={cn("w-16 h-10 rounded-full flex items-center px-1 transition-all", localMenu.isOpen ? "bg-green-500 justify-end" : "bg-zinc-700 justify-start")}><div className={cn("w-8 h-8 rounded-full bg-white shadow-lg transition-all", localMenu.isOpen && "scale-110")} /></button>
         </div>
         <div className="mt-3 text-center"><span className={cn("text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full", localMenu.isOpen ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>{localMenu.isOpen ? 'LOJA ABERTA' : 'LOJA FECHADA'}</span></div>
       </div>
       <div className="bg-zinc-800/50 p-6 rounded-2xl border border-white/5">
         <div className="flex justify-between items-center">
-          <div><h4 className="text-white font-bold text-lg flex items-center gap-2"><Bike className="w-5 h-5 text-primary" /> Delivery</h4><p className="text-zinc-500 text-xs mt-1">Permitir entrega</p></div>
+          <div><h4 className="text-white font-bold text-lg flex items-center gap-2"><Bike className="w-5 h-5 text-primary" /> Entrega / Delivery</h4><p className="text-zinc-500 text-xs mt-1">Permitir que clientes escolham entrega</p></div>
           <button onClick={() => setLocalMenu({ ...localMenu, hasDelivery: !localMenu.hasDelivery })} className={cn("w-16 h-10 rounded-full flex items-center px-1 transition-all", localMenu.hasDelivery ? "bg-green-500 justify-end" : "bg-zinc-700 justify-start")}><div className={cn("w-8 h-8 rounded-full bg-white shadow-lg", localMenu.hasDelivery && "scale-110")} /></button>
         </div>
-        {localMenu.hasDelivery && <div className="mt-4"><label className="text-[10px] text-zinc-500 uppercase font-black block mb-2">Taxa de Entrega (R$)</label><input type="number" step="0.01" value={localMenu.deliveryFee} onChange={e => setLocalMenu({ ...localMenu, deliveryFee: parseFloat(e.target.value) || 0 })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>}
+        {localMenu.hasDelivery && <div className="mt-4"><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Taxa de Entrega (R$)</label><input type="number" step="0.01" value={localMenu.deliveryFee} onChange={e => setLocalMenu({ ...localMenu, deliveryFee: parseFloat(e.target.value) || 0 })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>}
       </div>
       <div className="bg-zinc-800/50 p-6 rounded-2xl border border-white/5">
         <h4 className="text-white font-bold text-lg flex items-center gap-2 mb-4"><Clock className="w-5 h-5 text-primary" /> Tempo de Preparo</h4>
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="text-[10px] text-zinc-500 uppercase font-black block mb-2">Mínimo (min)</label><input type="number" value={localMenu.prepTime?.min || 30} onChange={e => setLocalMenu({ ...localMenu, prepTime: { ...(localMenu.prepTime || {}), min: parseInt(e.target.value) || 30 } })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>
-          <div><label className="text-[10px] text-zinc-500 uppercase font-black block mb-2">Máximo (min)</label><input type="number" value={localMenu.prepTime?.max || 50} onChange={e => setLocalMenu({ ...localMenu, prepTime: { ...(localMenu.prepTime || {}), max: parseInt(e.target.value) || 50 } })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>
+          <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Mínimo (min)</label><input type="number" value={localMenu.prepTime?.min || 30} onChange={e => setLocalMenu({ ...localMenu, prepTime: { ...(localMenu.prepTime || {}), min: parseInt(e.target.value) || 30 } })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>
+          <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Máximo (min)</label><input type="number" value={localMenu.prepTime?.max || 50} onChange={e => setLocalMenu({ ...localMenu, prepTime: { ...(localMenu.prepTime || {}), max: parseInt(e.target.value) || 50 } })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" /></div>
         </div>
       </div>
       <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Configurações</>}</button>
@@ -160,7 +160,7 @@ const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Dr
   return (
     <>
       <div className="space-y-4">
-        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhuma bebida cadastrada</p></div> : drinks.map(drink => (
+        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhuma bebida cadastrada</p><p className="text-xs text-zinc-600 mt-1">Adicione refrigerantes, sucos, águas...</p></div> : drinks.map(drink => (
           <div key={drink.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center gap-4">
             {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-zinc-900 flex items-center justify-center"><Coffee className="w-6 h-6 text-zinc-700" /></div>}
             <div className="flex-1"><p className="text-white font-bold">{drink.name}</p><p className="text-primary font-bold text-sm">{formatBRL(drink.price)}</p></div>
@@ -186,12 +186,12 @@ const MeatsManager = ({ meats, onUpdate }: { meats: Meat[]; onUpdate: (m: Meat[]
   return (
     <>
       <div className="space-y-3">
-        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p></div> : meats.map((meat) => (
+        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione tipos de carne, adicionais...</p></div> : meats.map((meat) => (
           <div key={meat.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3"><GripVertical className="w-4 h-4 text-zinc-600" /><Beef className="w-5 h-5 text-primary/50" /><span className="text-white font-bold">{meat.name}</span></div>
             <div className="flex items-center gap-1">
               <button onClick={() => { setEditingMeat(meat); setShowModal(true); }} className="p-2 hover:bg-white/5 rounded-lg text-primary"><Edit2 className="w-4 h-4" /></button>
-              <button onClick={() => { if (confirm('Remover?')) onUpdate(meats.filter(m => m.id !== meat.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => { if (confirm('Remover este complemento?')) onUpdate(meats.filter(m => m.id !== meat.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         ))}
@@ -206,13 +206,13 @@ const SlidesManager = ({ slides, onUpdate }: { slides: Slide[]; onUpdate: (s: Sl
   const [showModal, setShowModal] = useState(false);
   const [editingSlide, setEditingSlide] = useState<Slide | undefined>();
   const handleSave = (slide: Slide) => { if (editingSlide) onUpdate(slides.map(s => s.id === slide.id ? slide : s)); else onUpdate([...slides, slide]); setShowModal(false); };
-  const handleDelete = (id: string) => { if (confirm('Remover?')) onUpdate(slides.filter(s => s.id !== id)); };
+  const handleDelete = (id: string) => { if (confirm('Remover este slide?')) onUpdate(slides.filter(s => s.id !== id)); };
   const moveUp = (idx: number) => { if (idx === 0) return; const newSlides = [...slides]; [newSlides[idx - 1], newSlides[idx]] = [newSlides[idx], newSlides[idx - 1]]; onUpdate(newSlides); };
   const moveDown = (idx: number) => { if (idx === slides.length - 1) return; const newSlides = [...slides]; [newSlides[idx], newSlides[idx + 1]] = [newSlides[idx + 1], newSlides[idx]]; onUpdate(newSlides); };
   return (
     <>
       <div className="space-y-4">
-        {slides.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Layers className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum slide cadastrado</p></div> : slides.map((slide, idx) => (
+        {slides.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Layers className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum slide cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione imagens para o carrossel da loja</p></div> : slides.map((slide, idx) => (
           <div key={slide.id} className="bg-zinc-800/50 rounded-xl border border-white/5 overflow-hidden">
             <div className="flex">
               <div className="w-28 h-20 bg-zinc-900 flex-shrink-0">{slide.image ? <img src={slide.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-zinc-700" /></div>}</div>
@@ -229,8 +229,8 @@ const SlidesManager = ({ slides, onUpdate }: { slides: Slide[]; onUpdate: (s: Sl
   );
 };
 
-// ORDER CARD - using function declaration to avoid key prop issues
-function OrderCard({ order, onUpdateStatus, showDate }: { order: any; onUpdateStatus: (id: string, status: string) => void; showDate?: boolean }) {
+// OrderCard as React.FC to properly exclude key from props
+const OrderCard: React.FC<{ order: any; onUpdateStatus: (id: string, status: string) => void; showDate?: boolean }> = ({ order, onUpdateStatus, showDate }) => {
   return (
     <div className="bg-zinc-900 border border-white/5 rounded-3xl p-6 flex flex-col shadow-xl">
       <div className="flex justify-between items-start mb-4">
@@ -259,7 +259,7 @@ function OrderCard({ order, onUpdateStatus, showDate }: { order: any; onUpdateSt
       </div>
     </div>
   );
-}
+};
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
