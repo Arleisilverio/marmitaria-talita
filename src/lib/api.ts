@@ -94,6 +94,24 @@ export const api = {
     if (error) throw new Error("Erro ao excluir lojista.");
   },
 
+  // Nova função: Deleta admin E store_settings
+  deleteAppAdminWithStore: async (id: string, slug: string) => {
+    // Primeiro deleta store_settings
+    const { error: storeError } = await supabase
+      .from('store_settings')
+      .delete()
+      .eq('store_slug', slug);
+    
+    if (storeError) {
+      console.error("Erro ao deletar store_settings:", storeError);
+      // Continua mesmo se store_settings não existir
+    }
+    
+    // Depois deleta o admin
+    const { error: adminError } = await supabase.from('app_admins').delete().eq('id', id);
+    if (adminError) throw new Error("Erro ao excluir lojista.");
+  },
+
   getAllStores: async () => {
     const { data: activeAdmins } = await supabase.from('app_admins').select('slug').eq('status', 'active');
     if (!activeAdmins || activeAdmins.length === 0) return [];

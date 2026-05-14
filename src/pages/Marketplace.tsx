@@ -1,21 +1,28 @@
 import React, { useEffect, useState } from 'react';
-// Build version: 1.0.2 - Premium UI & Database Sync
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
-import { Leaf, Store, ArrowRight, Clock, ArrowLeft } from 'lucide-react';
+import { Leaf, Store, ArrowRight, Clock, ArrowLeft, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../integrations/supabase/client';
+import { toast } from 'react-hot-toast';
 
 export default function Marketplace() {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchStores = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+        // Verifica se há usuário logado
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        
+        // Carrega lojas
         const data = await api.getAllStores();
         setStores(data);
       } catch (err: any) {
@@ -25,8 +32,15 @@ export default function Marketplace() {
         setLoading(false);
       }
     };
-    fetchStores();
+    fetchData();
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    toast.success("Você saiu da conta.");
+    navigate('/');
+  };
 
   if (loading) {
     return (
@@ -82,18 +96,35 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-background selection:bg-primary/30">
-      {/* Botão Voltar para o Login */}
-      <motion.button 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        onClick={() => navigate('/login')}
-        className="fixed top-8 left-8 z-50 flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
-      >
-        <div className="w-12 h-12 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(226,114,91,0.4)] transition-all">
-          <ArrowLeft className="w-5 h-5" />
-        </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0">Login</span>
-      </motion.button>
+      {/* Header com Login/Logout */}
+      <div className="fixed top-8 right-8 z-50 flex items-center gap-4">
+        {user ? (
+          <div className="flex items-center gap-4">
+            <span className="text-zinc-500 text-xs font-mono hidden md:block">{user.email}</span>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
+            >
+              <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Sair</span>
+            </button>
+          </div>
+        ) : (
+          <motion.button 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={() => navigate('/login')}
+            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
+          >
+            <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(226,114,91,0.4)] transition-all">
+              <ArrowLeft className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0">Login</span>
+          </motion.button>
+        )}
+      </div>
 
       {/* Hero Section */}
       <div className="relative min-h-[50vh] flex items-center justify-center overflow-hidden py-20">
@@ -174,14 +205,40 @@ export default function Marketplace() {
           </div>
         </motion.div>
 
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {stores.length > 0 ? (
-            stores.map((store) => (
+        {/* SEM LOJAS CADASTRADAS */}
+        {stores.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="py-20 text-center"
+          >
+            <div className="max-w-md mx-auto bg-zinc-900/50 border border-white/5 rounded-3xl p-10 backdrop-blur-xl">
+              <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-white/10">
+                <Store className="w-10 h-10 text-zinc-700" />
+              </div>
+              <h3 className="text-white text-xl font-bold mb-3 uppercase tracking-tighter">Nenhuma loja cadastrada</h3>
+              <p className="text-zinc-500 font-medium max-w-xs mx-auto mb-8">
+                Ainda não temos marmitarias disponíveis. Se você é lojista, entre em contato com o administrador para criar sua loja.
+              </p>
+              {user && (
+                <button 
+                  onClick={handleLogout}
+                  className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl text-red-500 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-500/20 transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Sair da Conta
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {stores.map((store) => (
               <motion.div
                 key={store.slug}
                 variants={itemVariants}
@@ -248,21 +305,9 @@ export default function Marketplace() {
                   </div>
                 </div>
               </motion.div>
-            ))
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="col-span-full py-32 text-center"
-            >
-              <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-white/10">
-                <Store className="w-10 h-10 text-zinc-700" />
-              </div>
-              <h3 className="text-white text-xl font-bold mb-2 uppercase tracking-tighter">Nenhuma loja ativa</h3>
-              <p className="text-zinc-600 font-medium max-w-xs mx-auto">Estamos preparando novas marmitarias para você. Volte em breve!</p>
-            </motion.div>
-          )}
-        </motion.div>
+            ))}
+          </motion.div>
+        )}
       </main>
 
       {/* Footer Premium */}

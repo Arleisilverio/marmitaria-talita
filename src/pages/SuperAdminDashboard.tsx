@@ -63,10 +63,11 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const handleDeleteAdmin = async (id: string) => {
+  const handleDeleteAdmin = async (id: string, slug: string) => {
     if (!window.confirm("Tem certeza que deseja excluir esta loja? A ação não pode ser desfeita.")) return;
     try {
-      await api.deleteAppAdmin(id);
+      // Deleta o admin E as configurações da loja
+      await api.deleteAppAdminWithStore(id, slug);
       toast.success("Loja excluída com sucesso!");
       loadAdmins();
     } catch (err: any) {
@@ -150,7 +151,7 @@ export default function SuperAdminDashboard() {
                   <button onClick={() => toggleStatus(admin.id, admin.status)} className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase flex justify-center items-center gap-2 transition-colors ${admin.status === 'active' ? 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}>
                     {admin.status === 'active' ? <><Ban className="w-4 h-4"/> Bloquear</> : <><CheckCircle className="w-4 h-4"/> Liberar</>}
                   </button>
-                  <button onClick={() => handleDeleteAdmin(admin.id)} className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors flex items-center justify-center">
+                  <button onClick={() => handleDeleteAdmin(admin.id, admin.slug)} className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors flex items-center justify-center" title="Excluir loja">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
