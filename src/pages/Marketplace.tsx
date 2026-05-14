@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+// Build version: 1.0.2 - Premium UI & Database Sync
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
