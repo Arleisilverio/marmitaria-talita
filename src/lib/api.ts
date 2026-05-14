@@ -198,7 +198,10 @@ export const api = {
       .select('store_slug, menu_data')
       .in('store_slug', activeSlugs);
       
-    if (error) return [];
+    if (error) {
+      console.error("Erro ao buscar configurações das lojas:", error);
+      return [];
+    }
     
     // Filtra apenas as que têm dados básicos de menu
     return data.map(item => ({
