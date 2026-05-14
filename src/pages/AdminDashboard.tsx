@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL, cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
@@ -13,45 +13,90 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings'>('orders');
   const [menu, setMenu] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [storeSlug, setStoreSlug] = useState<string>('marmitaria-talita');
+  const [storeSlug, setStoreSlug] = useState<string>('');
   const [isBlocked, setIsBlocked] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [adminData, setAdminData] = useState<any>(null);
 
   useEffect(() => {
     checkAccess();
   }, []);
 
   const checkAccess = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return navigate('/login');
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast.error("Você precisa estar logado.");
+        return navigate('/login');
+      }
 
-    const adminData = await api.checkAdminAccess(user.email!);
-    if (!adminData && user.email !== 'arleisilverio41@gmail.com') {
-      toast.error("Acesso negado.");
-      return navigate('/');
+      const userEmail = user.email?.toLowerCase().trim() || '';
+      
+      // Super Admin
+      if (userEmail === 'arleisilverio41@gmail.com') {
+        setAdminData({ isSuperAdmin: true });
+        setStoreSlug('marmitaria-talita');
+        await loadStoreData('marmitaria-talita');
+        return;
+      }
+
+      // Busca dados do admin na tabela app_admins
+      const adminResult = await api.checkAdminAccess(userEmail);
+      
+      if (!adminResult) {
+        toast.error("Acesso negado. Você não é administrador de nenhuma loja.");
+        return navigate('/');
+      }
+
+      // Verifica se está bloqueado
+      if (adminResult.status === 'blocked') {
+        setIsBlocked(true);
+        setLoading(false);
+        return;
+      }
+
+      setAdminData(adminResult);
+      
+      // Usa o slug passado via state OU o slug do adminData
+      const slugFromState = location.state?.storeSlug;
+      const finalSlug = slugFromState || adminResult.slug;
+      
+      if (!finalSlug) {
+        toast.error("Loja não encontrada.");
+        return navigate('/');
+      }
+
+      setStoreSlug(finalSlug);
+      await loadStoreData(finalSlug);
+      
+    } catch (err) {
+      console.error("Erro no checkAccess:", err);
+      toast.error("Erro ao verificar acesso.");
+      navigate('/');
     }
+  };
 
-    if (adminData?.status === 'blocked') {
-      setIsBlocked(true);
+  const loadStoreData = async (slug: string) => {
+    try {
+      const [menuData, ordersData] = await Promise.all([
+        api.getMenu(slug),
+        api.getOrders(slug)
+      ]);
+      
+      setMenu(menuData);
+      setOrders(ordersData);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+      toast.error("Erro ao carregar dados da loja.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const slug = adminData?.slug || 'marmitaria-talita';
-    setStoreSlug(slug);
-    
-    const [menuData, ordersData] = await Promise.all([
-      api.getMenu(slug),
-      api.getOrders(slug)
-    ]);
-    
-    setMenu(menuData);
-    setOrders(ordersData);
-    setLoading(false);
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
@@ -65,6 +110,7 @@ export default function AdminDashboard() {
   };
 
   const handleSaveMenu = async () => {
+    if (!storeSlug) return;
     setSaving(true);
     try {
       await api.updateMenu(storeSlug, menu);
@@ -122,26 +168,34 @@ export default function AdminDashboard() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu?.title}</h1>
-            <span className="text-[10px] text-primary font-black uppercase tracking-widest">Painel Admin</span>
+            <h1 className="text-white font-bold text-lg leading-tight uppercase">{menu?.title || 'Painel Admin'}</h1>
+            <span className="text-[10px] text-primary font-black uppercase tracking-widest">
+              {adminData?.isSuperAdmin ? 'Super Admin' : `Loja: ${storeSlug}`}
+            </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              const updated = { ...menu, isOpen: !menu.isOpen };
-              setMenu(updated);
-              api.updateMenu(storeSlug, updated);
-              toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
-            }}
-            className={cn(
-              "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-              menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
-            )}
-          >
-            {menu.isOpen ? 'LOJA ABERTA' : 'FECHADA'}
-          </button>
+          {menu && (
+            <button 
+              onClick={async () => {
+                const updated = { ...menu, isOpen: !menu.isOpen };
+                setMenu(updated);
+                try {
+                  await api.updateMenu(storeSlug, updated);
+                  toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!");
+                } catch {
+                  toast.error("Erro ao atualizar.");
+                }
+              }}
+              className={cn(
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
+              )}
+            >
+              {menu.isOpen ? 'LOJA ABERTA' : 'FECHADA'}
+            </button>
+          )}
           <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
             <LogOut className="w-5 h-5" />
           </button>
@@ -286,11 +340,11 @@ export default function AdminDashboard() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Nome da Loja</label>
-                    <input type="text" value={menu.title} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input type="text" value={menu?.title || ''} onChange={e => setMenu({...menu, title: e.target.value})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                   <div className="space-y-4">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Taxa de Entrega (R$)</label>
-                    <input type="text" value={menu.deliveryFee} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
+                    <input type="text" value={menu?.deliveryFee || ''} onChange={e => setMenu({...menu, deliveryFee: e.target.value.replace(',', '.')})} className="w-full bg-black/40 border border-white/5 p-4 rounded-xl text-white outline-none focus:border-primary"/>
                   </div>
                 </div>
                 <button onClick={handleSaveMenu} disabled={saving} className="w-full bg-primary py-4 rounded-xl font-heading font-black text-white shadow-xl shadow-primary/20">

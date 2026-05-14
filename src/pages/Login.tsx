@@ -17,46 +17,43 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        checkRedirect(user.email!).catch(err => {
-          console.error("Erro no redirecionamento:", err);
-          toast.error("Erro ao carregar seu perfil.");
-        });
+    // Verifica sessão ao carregar
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        checkRedirect(session.user.email!, session.user.id);
       }
     });
   }, []);
 
-  const checkRedirect = async (userEmail: string) => {
+  const checkRedirect = async (userEmail: string, userId?: string) => {
+    if (!userEmail) return;
+    
     try {
-      if (userEmail === 'arleisilverio41@gmail.com') {
-        navigate('/super-admin');
+      const lowerEmail = userEmail.toLowerCase().trim();
+      
+      // Super Admin sempre vai para super-admin
+      if (lowerEmail === 'arleisilverio41@gmail.com') {
+        navigate('/super-admin', { replace: true });
         return;
       }
 
-      // Buscar o usuário autenticado para obter o ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Buscar dados de admin e perfil em paralelo
-      const [adminData, profile] = await Promise.all([
-        api.checkAdminAccess(userEmail),
-        api.getProfile(user.id)
-      ]);
-
-      const isProfileComplete = profile && profile.full_name && profile.phone && profile.address;
+      // Busca dados do admin
+      const adminData = await api.checkAdminAccess(lowerEmail);
 
       if (adminData) {
-        // Redireciona sempre para o painel administrativo
-        navigate('/admin');
+        // Lojista vai para admin com o slug da loja
+        navigate('/admin', { 
+          state: { storeSlug: adminData.slug },
+          replace: true 
+        });
       } else {
-        // Cliente comum vai para a home (Marketplace)
-        navigate('/');
+        // Cliente comum vai para marketplace
+        navigate('/', { replace: true });
       }
     } catch (err) {
       console.error("Erro no checkRedirect:", err);
-      toast.error("Erro ao identificar seu perfil. Redirecionando...");
-      navigate('/');
+      toast.error("Erro ao identificar seu perfil.");
+      navigate('/', { replace: true });
     }
   };
 
@@ -71,8 +68,9 @@ export default function Login() {
       });
 
       if (error) throw error;
+      
       if (data.user) {
-        await checkRedirect(data.user.email!);
+        await checkRedirect(data.user.email!, data.user.id);
       }
       
     } catch (err: any) {
@@ -97,7 +95,7 @@ export default function Login() {
       if (error) throw error;
       
       if (data.session && data.user) {
-        checkRedirect(data.user.email!);
+        await checkRedirect(data.user.email!, data.user.id);
       } else {
         toast.success("Conta criada! Verifique seu email para confirmar.");
       }
@@ -135,7 +133,7 @@ export default function Login() {
         </div>
 
         {/* FLOATING CARDS */}
-        <div className="absolute top-20 right-20 bg-zinc-950/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl animate-bounce-slow">
+        <div className="absolute top-20 right-20 bg-zinc-950/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl">
            <div className="flex items-center gap-3">
              <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
                <ShieldCheck className="w-5 h-5 text-green-500" />
