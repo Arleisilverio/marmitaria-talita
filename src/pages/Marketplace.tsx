@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
-import { Leaf, Store, ArrowRight, Clock } from 'lucide-react';
+import { Leaf, Store, ArrowRight, Clock, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function Marketplace() {
@@ -28,6 +28,17 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Botão Voltar para o Login */}
+      <button 
+        onClick={() => navigate('/login')}
+        className="fixed top-8 left-8 z-50 flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group"
+      >
+        <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-primary transition-all">
+          <ArrowLeft className="w-5 h-5" />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-widest">Login</span>
+      </button>
+
       {/* Hero Section */}
       <div className="relative h-[40vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/20 to-background z-0" />
