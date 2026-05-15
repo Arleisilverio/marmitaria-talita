@@ -161,6 +161,18 @@ export default function ClientHome() {
     toast.success("Adicionado ao carrinho!");
   };
 
+  const handleAddComplement = (meat: any) => {
+    if (!menu.isOpen) return toast.error("Loja fechada no momento!");
+    addItem({
+      id: meat.id,
+      name: meat.name,
+      price: meat.price || 0,
+      quantity: 1,
+      type: 'complement'
+    });
+    toast.success(`${meat.name} adicionado!`);
+  };
+
   const handleAddDrink = (drink: any) => {
     if (!menu.isOpen) return toast.error("Loja fechada!");
     addItem({ 
@@ -287,6 +299,30 @@ export default function ClientHome() {
                   </button>
                 </motion.div>
               </section>
+
+              {/* COMPLEMENTOS / ADICIONAIS */}
+              {menu.meats?.length > 0 && (
+                <section className="px-container mt-16">
+                  <h4 className="font-heading text-2xl font-bold text-white mb-6">{menu.meatsTitle || 'Complementos'}</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {menu.meats.map((meat: any) => (
+                      <div key={meat.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/5">
+                        <div>
+                          <p className="font-bold text-white">{meat.name}</p>
+                          {meat.price > 0 ? (
+                            <p className="text-secondary font-bold text-sm">+ {formatBRL(meat.price)}</p>
+                          ) : (
+                            <p className="text-zinc-500 text-xs">Incluso / Grátis</p>
+                          )}
+                        </div>
+                        <button onClick={() => handleAddComplement(meat)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center">
+                          <Plus />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* BEBIDAS */}
               <section className="px-container mt-16 pb-20">

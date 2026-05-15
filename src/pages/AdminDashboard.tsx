@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface Drink { id: string; name: string; price: number; is_available?: boolean; image?: string; }
-interface Meat { id: string; name: string; }
+interface Meat { id: string; name: string; price?: number; }
 interface Slide { id: string; image: string; title: string; description: string; }
 interface MenuData { title: string; description: string; image: string; prices: { p: number; m: number; g: number }; meatsTitle?: string; meats: Meat[]; drinks: Drink[]; slides: Slide[]; isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; }
 
@@ -108,12 +108,14 @@ const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: D
 
 const MeatEditor = ({ meat, onSave, onCancel }: { meat?: Meat; onSave: (m: Meat) => void; onCancel: () => void }) => {
   const [name, setName] = useState(meat?.name || '');
+  const [price, setPrice] = useState(meat?.price?.toString() || '');
   return (
     <div className="space-y-4">
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Complemento</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango, Morango, Molho..." /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Valor Adicional (R$ - Opcional)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="0.00 (Deixe em branco se for grátis)" /></div>
       <div className="flex gap-3 pt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
-        <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim() }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
+        <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim(), price: parseFloat(price) || 0 }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
       </div>
     </div>
   );
@@ -225,7 +227,14 @@ const MeatsManager = ({ meats, onUpdate }: { meats: Meat[]; onUpdate: (m: Meat[]
       <div className="space-y-3">
         {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione acompanhamentos, adicionais...</p></div> : meats.map((meat) => (
           <div key={meat.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3"><GripVertical className="w-4 h-4 text-zinc-600" /><Beef className="w-5 h-5 text-primary/50" /><span className="text-white font-bold">{meat.name}</span></div>
+            <div className="flex items-center gap-3">
+              <GripVertical className="w-4 h-4 text-zinc-600" />
+              <Beef className="w-5 h-5 text-primary/50" />
+              <div>
+                <span className="text-white font-bold block">{meat.name}</span>
+                {meat.price ? <span className="text-primary text-xs font-bold">+ {formatBRL(meat.price)}</span> : <span className="text-zinc-500 text-xs">Sem custo adicional</span>}
+              </div>
+            </div>
             <div className="flex items-center gap-1">
               <button onClick={() => { setEditingMeat(meat); setShowModal(true); }} className="p-2 hover:bg-white/5 rounded-lg text-primary"><Edit2 className="w-4 h-4" /></button>
               <button onClick={() => { if (confirm('Remover este complemento?')) onUpdate(meats.filter(m => m.id !== meat.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
@@ -277,7 +286,6 @@ const ReportsView = ({ orders }: { orders: any[] }) => {
 
   const filteredOrders = orders.filter(o => {
     const orderDate = new Date(o.created_at);
-    // Usando date-fns para garantir que cobrimos o dia todo corretamente
     const start = startOfDay(new Date(dateRange.start + 'T00:00:00'));
     const end = endOfDay(new Date(dateRange.end + 'T00:00:00'));
     
@@ -523,7 +531,6 @@ export default function AdminDashboard() {
             <motion.div key="menu" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
               <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Utensils className="text-primary w-6 h-6" /> Produto Principal</h2><MainDishEditor menu={menu} onSave={handleSavePart} /></div>
               <div className="glass-card p-6 rounded-3xl border border-white/5">
-                {/* Título Editável da Seção de Complementos */}
                 <EditableTitle 
                   initialTitle={menu.meatsTitle || 'Carnes / Complementos'} 
                   icon={Beef} 
