@@ -38,21 +38,21 @@ export default function ClientHome() {
   const [isProfileComplete, setIsProfileComplete] = useState(true);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentUser, setCurrentUser] = useState<any>(null); // Guardar o usuário logado
 
   useEffect(() => { 
     if (location.state?.tab) setActiveTab(location.state.tab); 
   }, [location]);
 
   useEffect(() => {
-    // Verifica se é admin e checa perfil
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
       if (!user?.email) {
         setCheckingProfile(false);
         return;
       }
+      setCurrentUser(user);
 
-      // 1. Primeiro verifica se é Admin/SuperAdmin
       let isAdmin = false;
       let isSuper = false;
 
@@ -69,21 +69,17 @@ export default function ClientHome() {
         }
       }
       
-      // 2. Checa se o perfil está completo
       const profile = await api.getProfile(user.id);
       const complete = !!(profile?.full_name && profile?.phone && profile?.address);
       setIsProfileComplete(complete);
       setCheckingProfile(false);
       
-      // Super Admin nunca é bloqueado
       if (isSuper) return;
 
       if (!complete) {
-        // Se estiver vindo do login ou forçado, mostramos o aviso, mas não travamos a navegação
         const msg = isAdmin 
           ? "Bem-vindo! Recomendamos completar seu perfil para garantir a melhor experiência."
           : "Lembre-se de completar seu cadastro para poder fazer pedidos.";
-        
         toast.error(msg, { id: 'profile-warning', duration: 6000 });
       }
     });
@@ -107,7 +103,6 @@ export default function ClientHome() {
     }
   };
 
-  // Timer do Carrossel
   useEffect(() => {
     const slideCount = menu?.slides?.length || 0;
     if (slideCount <= 1 || activeTab !== 'menu') return;
@@ -122,130 +117,86 @@ export default function ClientHome() {
     </div>
   );
 
-  // Loja bloqueada pelo Super Admin por inadimplência
   if (menu.storeBlocked) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-white">
       <div className="max-w-md w-full bg-zinc-900/80 border border-red-500/20 rounded-3xl p-10 text-center backdrop-blur-xl">
         <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6">
           <ShieldOff className="w-10 h-10 text-red-500" />
         </div>
-        <h2 className="font-heading text-2xl font-black text-white mb-3 tracking-tight">
-          Loja Temporariamente Fechada
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed mb-8">
-          Esta loja está indisponível no momento.<br />
-          Por favor, tente novamente mais tarde.
-        </p>
-        <button
-          onClick={() => navigate('/')}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
-        >
-          <ArrowLeft size={16} />
-          Ver Outras Lojas
-        </button>
+        <h2 className="font-heading text-2xl font-black text-white mb-3 tracking-tight">Loja Temporariamente Fechada</h2>
+        <p className="text-zinc-400 text-sm leading-relaxed mb-8">Esta loja está indisponível no momento.<br />Por favor, tente novamente mais tarde.</p>
+        <button onClick={() => navigate('/')} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-colors flex items-center justify-center gap-2"><ArrowLeft size={16} /> Ver Outras Lojas</button>
       </div>
     </div>
   );
 
-  const activeSlides = menu.slides?.length > 0 
-    ? menu.slides 
-    : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor que você merece' }];
+  const activeSlides = menu.slides?.length > 0 ? menu.slides : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor que você merece' }];
 
   const handleAddDish = () => {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
-    addItem({ 
-      id: `marmita_diaria`, 
-      name: menu.title, 
-      size: selectedSize.toUpperCase() as any, 
-      price: menu.prices[selectedSize], 
-      quantity: 1, 
-      type: 'dish' 
-    });
+    addItem({ id: `marmita_diaria`, name: menu.title, size: selectedSize.toUpperCase() as any, price: menu.prices[selectedSize], quantity: 1, type: 'dish' });
     toast.success("Adicionado ao carrinho!");
   };
 
   const handleAddComplement = (meat: any) => {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
-    addItem({
-      id: meat.id,
-      name: meat.name,
-      price: meat.price || 0,
-      quantity: 1,
-      type: 'complement'
-    });
+    addItem({ id: meat.id, name: meat.name, price: meat.price || 0, quantity: 1, type: 'complement' });
     toast.success(`${meat.name} adicionado!`);
   };
 
   const handleAddDrink = (drink: any) => {
     if (!menu.isOpen) return toast.error("Loja fechada!");
-    addItem({ 
-      id: drink.id, 
-      name: drink.name, 
-      price: drink.price, 
-      quantity: 1, 
-      type: 'drink' 
-    });
+    addItem({ id: drink.id, name: drink.name, price: drink.price, quantity: 1, type: 'drink' });
     toast.success(`${drink.name} adicionado!`);
   };
 
-  // Redirecionamento para o Telegram
+  // Lógica segura do Telegram
   const handleTelegramOrder = () => {
+    if (!currentUser) {
+      toast.error("Você precisa estar logado para falar com a IA.");
+      navigate('/login');
+      return;
+    }
+    if (!isProfileComplete) {
+      toast.error("Complete seu perfil com nome, telefone e endereço para a IA poder tirar seu pedido!");
+      setActiveTab('profile');
+      return;
+    }
+
     const botName = menu.telegramBotUsername?.replace('@', '');
     if (!botName) {
       toast.error("O lojista ainda não configurou o Garçom IA no Telegram.");
       return;
     }
-    // Deep Link do Telegram: t.me/Bot?start=store_slug
-    const telegramUrl = `https://t.me/${botName}?start=${slug}`;
+    
+    // O pulo do gato: Enviamos "slug__userid"
+    const payload = `${slug}__${currentUser.id}`;
+    const telegramUrl = `https://t.me/${botName}?start=${payload}`;
     window.open(telegramUrl, '_blank');
   };
 
-  // Dinamic Icons
   const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
   const DrinksIcon = AVAILABLE_ICONS[(menu.sectionDrinksIcon as IconKey)] || AVAILABLE_ICONS.Coffee;
 
   return (
     <div className="min-h-screen pb-32 md:pb-12 bg-background">
-      {/* HEADER */}
       <header className="bg-surface/80 backdrop-blur-xl border-b border-white/5 px-4 py-4 sticky top-0 z-50 w-full">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/')}
-              className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white"
-              title="Voltar para a vitrine"
-            >
-              <ArrowLeft size={20} />
-            </button>
+            <button onClick={() => navigate('/')} className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white"><ArrowLeft size={20} /></button>
             <div className="flex items-center gap-2">
               <Leaf className="text-secondary w-6 h-6 hidden md:block" />
-              <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter truncate max-w-[150px] md:max-w-none">
-                {menu.title}
-              </h1>
+              <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter truncate max-w-[150px] md:max-w-none">{menu.title}</h1>
             </div>
           </div>
-
           <nav className="hidden md:flex items-center gap-8">
-            <button 
-              onClick={() => setActiveTab('menu')} 
-              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}
-            >
-              Cardápio
-            </button>
-            <button 
-              onClick={() => setActiveTab('orders')} 
-              className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}
-            >
-              Pedidos
-            </button>
+            <button onClick={() => setActiveTab('menu')} className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'menu' ? "text-primary" : "text-zinc-500")}>Cardápio</button>
+            <button onClick={() => setActiveTab('orders')} className={cn("text-xs font-bold uppercase transition-opacity", activeTab === 'orders' ? "text-primary" : "text-zinc-500")}>Pedidos</button>
             <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
             {isStoreAdmin && (
-              <button onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
-                <ShieldAlert size={14}/> Painel
-              </button>
+              <button onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1"><ShieldAlert size={14}/> Painel</button>
             )}
           </nav>
-
           <div className={cn("px-3 py-1 rounded-full text-[10px] font-bold border shrink-0", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>
             {menu.isOpen ? 'ABERTO' : 'FECHADO'}
           </div>
@@ -257,23 +208,16 @@ export default function ClientHome() {
           {activeTab === 'menu' && (
             <motion.div key="menu-tab" variants={containerVariants} initial="hidden" animate="show">
               
-              {/* BOTÃO TELEGRAM / GARÇOM VIRTUAL */}
               {menu.telegramBotUsername && (
                 <section className="px-container mt-6">
                   <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleTelegramOrder}
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTelegramOrder}
                     className="w-full bg-[#2AABEE]/10 border border-[#2AABEE]/30 p-5 rounded-3xl flex items-center justify-between shadow-[0_0_30px_rgba(42,171,238,0.15)] group transition-all hover:bg-[#2AABEE]/20"
                   >
                     <div className="flex items-center gap-4 text-left">
-                      <div className="w-12 h-12 rounded-full bg-[#2AABEE] flex items-center justify-center shadow-lg">
-                        <Send className="w-6 h-6 text-white ml-[-2px] mt-[2px]" />
-                      </div>
+                      <div className="w-12 h-12 rounded-full bg-[#2AABEE] flex items-center justify-center shadow-lg"><Send className="w-6 h-6 text-white ml-[-2px] mt-[2px]" /></div>
                       <div>
-                        <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">
-                          Pedir com {menu.aiName || 'o Garçom IA'}
-                        </h3>
+                        <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">Pedir com {menu.aiName || 'o Garçom IA'}</h3>
                         <p className="text-[#2AABEE] text-xs font-medium">Faça seu pedido direto pelo Telegram de forma rápida!</p>
                       </div>
                     </div>
@@ -282,7 +226,6 @@ export default function ClientHome() {
                 </section>
               )}
 
-              {/* CARROSSEL */}
               <section className="px-container mt-6">
                 <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl">
                    <AnimatePresence mode="wait">
@@ -295,107 +238,61 @@ export default function ClientHome() {
                        </div>
                      </motion.div>
                    </AnimatePresence>
-
-                    {/* Navegação do Carrossel (Dots) */}
                     {activeSlides.length > 1 && (
                       <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
-                        {activeSlides.map((_: any, idx: number) => (
-                          <button
-                            key={idx}
-                            onClick={() => setCurrentSlide(idx)}
-                            className={cn(
-                              "w-2 h-2 rounded-full transition-all duration-300",
-                              idx === currentSlide ? "w-6 bg-primary" : "bg-white/30 hover:bg-white/50"
-                            )}
-                          />
-                        ))}
+                        {activeSlides.map((_: any, idx: number) => <button key={idx} onClick={() => setCurrentSlide(idx)} className={cn("w-2 h-2 rounded-full transition-all duration-300", idx === currentSlide ? "w-6 bg-primary" : "bg-white/30 hover:bg-white/50")} />)}
                       </div>
                     )}
                 </div>
               </section>
 
-              {/* PRATO PRINCIPAL */}
               <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
                 <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative shadow-2xl border border-white/5">
                   <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
-                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider backdrop-blur-md">
-                    Destaque
-                  </div>
+                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider backdrop-blur-md">Destaque</div>
                 </motion.div>
-                
                 <motion.div variants={itemVariants} className="flex flex-col justify-center">
                   <h3 className="font-heading text-4xl font-bold text-white mb-4">{menu.title}</h3>
                   <p className="text-zinc-400 text-lg mb-8 leading-relaxed">{menu.description}</p>
-                  
                   <div className="mb-8">
                     <p className="text-[10px] text-zinc-500 uppercase font-black mb-3 tracking-widest">Escolha o Tamanho</p>
                     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                       {(['p', 'm', 'g'] as const).map(size => (
-                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-4 px-6 rounded-2xl font-bold border whitespace-nowrap transition-all", selectedSize === size ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" : "bg-zinc-900 text-zinc-500 border-white/5 hover:bg-zinc-800")}>
-                          {size.toUpperCase()} • {formatBRL(menu.prices[size])}
-                        </button>
+                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-4 px-6 rounded-2xl font-bold border whitespace-nowrap transition-all", selectedSize === size ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" : "bg-zinc-900 text-zinc-500 border-white/5 hover:bg-zinc-800")}>{size.toUpperCase()} • {formatBRL(menu.prices[size])}</button>
                       ))}
                     </div>
                   </div>
-                  
-                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl transition-transform active:scale-95", menu.isOpen ? "bg-primary text-white hover:brightness-110" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>
-                    ADICIONAR AO PEDIDO
-                  </button>
+                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl transition-transform active:scale-95", menu.isOpen ? "bg-primary text-white hover:brightness-110" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>ADICIONAR AO PEDIDO</button>
                 </motion.div>
               </section>
 
-              {/* COMPLEMENTOS / ADICIONAIS */}
               {menu.meats?.length > 0 && (
                 <section className="px-container mt-16">
-                  <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <MeatsIcon className="text-primary w-7 h-7" />
-                    {menu.sectionMeatsTitle || 'Adicionais'}
-                  </h4>
+                  <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><MeatsIcon className="text-primary w-7 h-7" />{menu.sectionMeatsTitle || 'Adicionais'}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {menu.meats.map((meat: any) => (
                       <div key={meat.id} className="bg-zinc-900/50 p-5 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
                         <div>
                           <p className="font-bold text-white group-hover:text-primary transition-colors">{meat.name}</p>
-                          {meat.price > 0 ? (
-                            <p className="text-secondary font-bold text-sm">+ {formatBRL(meat.price)}</p>
-                          ) : (
-                            <p className="text-zinc-500 text-xs font-mono">Sem custo</p>
-                          )}
+                          {meat.price > 0 ? <p className="text-secondary font-bold text-sm">+ {formatBRL(meat.price)}</p> : <p className="text-zinc-500 text-xs font-mono">Sem custo</p>}
                         </div>
-                        <button onClick={() => handleAddComplement(meat)} disabled={!menu.isOpen} className="w-12 h-12 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0">
-                          <Plus />
-                        </button>
+                        <button onClick={() => handleAddComplement(meat)} disabled={!menu.isOpen} className="w-12 h-12 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0"><Plus /></button>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              {/* BEBIDAS E EXTRAS */}
               <section className="px-container mt-16 pb-20">
-                <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                  <DrinksIcon className="text-primary w-7 h-7" />
-                  {menu.sectionDrinksTitle || 'Bebidas e Extras'}
-                </h4>
+                <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><DrinksIcon className="text-primary w-7 h-7" />{menu.sectionDrinksTitle || 'Bebidas e Extras'}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {menu.drinks?.map((drink: any) => (
                     <div key={drink.id} className="bg-zinc-900/50 p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
                       <div className="flex items-center gap-4">
-                        {drink.image ? (
-                           <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover shadow-lg" />
-                        ) : (
-                           <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center">
-                             <DrinksIcon className="w-6 h-6 text-zinc-600" />
-                           </div>
-                        )}
-                        <div>
-                          <p className="font-bold text-white group-hover:text-primary transition-colors">{drink.name}</p>
-                          <p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p>
-                        </div>
+                        {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover shadow-lg" /> : <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center"><DrinksIcon className="w-6 h-6 text-zinc-600" /></div>}
+                        <div><p className="font-bold text-white group-hover:text-primary transition-colors">{drink.name}</p><p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p></div>
                       </div>
-                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0">
-                        <Plus />
-                      </button>
+                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0"><Plus /></button>
                     </div>
                   ))}
                 </div>
@@ -404,68 +301,26 @@ export default function ClientHome() {
           )}
 
           {activeTab === 'orders' && <div className="mt-6"><OrdersView /></div>}
-          {activeTab === 'profile' && (
-            <div className="mt-6">
-              <ProfileView 
-                isMandatory={!isProfileComplete} 
-                onSaveSuccess={refreshProfileStatus} 
-              />
-            </div>
-          )}
+          {activeTab === 'profile' && <div className="mt-6"><ProfileView isMandatory={!isProfileComplete} onSaveSuccess={refreshProfileStatus} /></div>}
         </AnimatePresence>
       </main>
 
-      {/* CARRINHO FLUTUANTE */}
       {items.length > 0 && activeTab === 'menu' && (
         <div className="fixed bottom-24 md:bottom-8 left-0 right-0 px-container z-40 md:flex md:justify-center">
-          <button 
-            onClick={() => {
-              if (!isProfileComplete && !isSuperAdmin) {
-                setActiveTab('profile');
-                return toast.error("Por favor, complete seu perfil para prosseguir.");
-              }
-              navigate('/checkout');
-            }} 
-            className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl shadow-primary/30 hover:scale-105 transition-transform"
-          >
-            <span className="flex items-center gap-2"><ShoppingCart className="w-5 h-5"/> CARRINHO ({items.length})</span>
-            <span className="text-xl">{formatBRL(total)}</span>
-          </button>
+          <button onClick={() => { if (!isProfileComplete && !isSuperAdmin) { setActiveTab('profile'); return toast.error("Por favor, complete seu perfil para prosseguir."); } navigate('/checkout'); }} className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl shadow-primary/30 hover:scale-105 transition-transform"><span className="flex items-center gap-2"><ShoppingCart className="w-5 h-5"/> CARRINHO ({items.length})</span><span className="text-xl">{formatBRL(total)}</span></button>
         </div>
       )}
 
-      {/* BARRA MOBILE */}
       <nav className="md:hidden bg-zinc-950/90 backdrop-blur-xl fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
-        <button 
-          onClick={() => setActiveTab('menu')} 
-          className={activeTab === 'menu' ? "text-primary" : "text-zinc-500"}
-        >
-          <Utensils className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Cardápio</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('orders')} 
-          className={activeTab === 'orders' ? "text-primary" : "text-zinc-500"}
-        >
-          <Receipt className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Pedidos</span>
-        </button>
-        <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>
-          <User className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Perfil</span>
-        </button>
+        <button onClick={() => setActiveTab('menu')} className={activeTab === 'menu' ? "text-primary" : "text-zinc-500"}><Utensils className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Cardápio</span></button>
+        <button onClick={() => setActiveTab('orders')} className={activeTab === 'orders' ? "text-primary" : "text-zinc-500"}><Receipt className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Pedidos</span></button>
+        <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}><User className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Perfil</span></button>
       </nav>
 
       <AIChat menuContext={menu} storeName={menu.title} />
 
-      {/* BOTÃO FLUTUANTE ADMIN (Apenas para o dono) */}
       {isStoreAdmin && (
-        <motion.button 
-          initial={{ x: 100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')}
-          className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"
-        >
-          <ShieldAlert size={20}/>
-          <span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span>
-        </motion.button>
+        <motion.button initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"><ShieldAlert size={20}/><span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span></motion.button>
       )}
     </div>
   );
