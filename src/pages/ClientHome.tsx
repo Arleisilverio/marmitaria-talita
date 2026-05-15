@@ -39,7 +39,6 @@ export default function ClientHome() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Estados do Modal do Telegram
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [telegramPayload, setTelegramPayload] = useState('');
 
@@ -134,6 +133,10 @@ export default function ClientHome() {
   );
 
   const activeSlides = menu.slides?.length > 0 ? menu.slides : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor que você merece' }];
+
+  // Filtra itens para só mostrar o que está DISPONÍVEL
+  const availableMeats = menu.meats?.filter((m: any) => m.is_available !== false) || [];
+  const availableDrinks = menu.drinks?.filter((d: any) => d.is_available !== false) || [];
 
   const handleAddDish = () => {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
@@ -267,11 +270,11 @@ export default function ClientHome() {
                 </motion.div>
               </section>
 
-              {menu.meats?.length > 0 && (
+              {availableMeats.length > 0 && (
                 <section className="px-container mt-16">
                   <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><MeatsIcon className="text-primary w-7 h-7" />{menu.sectionMeatsTitle || 'Adicionais'}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {menu.meats.map((meat: any) => (
+                    {availableMeats.map((meat: any) => (
                       <div key={meat.id} className="bg-zinc-900/50 p-5 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
                         <div>
                           <p className="font-bold text-white group-hover:text-primary transition-colors">{meat.name}</p>
@@ -284,20 +287,22 @@ export default function ClientHome() {
                 </section>
               )}
 
-              <section className="px-container mt-16 pb-20">
-                <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><DrinksIcon className="text-primary w-7 h-7" />{menu.sectionDrinksTitle || 'Bebidas e Extras'}</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {menu.drinks?.map((drink: any) => (
-                    <div key={drink.id} className="bg-zinc-900/50 p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
-                      <div className="flex items-center gap-4">
-                        {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover shadow-lg" /> : <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center"><DrinksIcon className="w-6 h-6 text-zinc-600" /></div>}
-                        <div><p className="font-bold text-white group-hover:text-primary transition-colors">{drink.name}</p><p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p></div>
+              {availableDrinks.length > 0 && (
+                <section className="px-container mt-16 pb-20">
+                  <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><DrinksIcon className="text-primary w-7 h-7" />{menu.sectionDrinksTitle || 'Bebidas e Extras'}</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {availableDrinks.map((drink: any) => (
+                      <div key={drink.id} className="bg-zinc-900/50 p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
+                        <div className="flex items-center gap-4">
+                          {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover shadow-lg" /> : <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center"><DrinksIcon className="w-6 h-6 text-zinc-600" /></div>}
+                          <div><p className="font-bold text-white group-hover:text-primary transition-colors">{drink.name}</p><p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p></div>
+                        </div>
+                        <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0"><Plus /></button>
                       </div>
-                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0"><Plus /></button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                </section>
+              )}
             </motion.div>
           )}
 
@@ -322,7 +327,7 @@ export default function ClientHome() {
         <motion.button initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"><ShieldAlert size={20}/><span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span></motion.button>
       )}
 
-      {/* Modal de Segurança do Telegram REFORMULADO (Clean UX) */}
+      {/* Modal de Segurança do Telegram */}
       <AnimatePresence>
         {showTelegramModal && (
           <motion.div 
@@ -354,7 +359,6 @@ export default function ClientHome() {
                   <Send className="w-5 h-5" /> Abrir o Telegram
                 </button>
 
-                {/* Código oculto para fallback se o celular do usuário falhar */}
                 <button 
                   onClick={() => { 
                     navigator.clipboard.writeText(`/start ${telegramPayload}`); 

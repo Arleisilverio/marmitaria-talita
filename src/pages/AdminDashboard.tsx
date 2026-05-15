@@ -9,6 +9,8 @@ import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/hooks';
 
 interface Drink { id: string; name: string; price: number; is_available?: boolean; image?: string; }
 interface Meat { id: string; name: string; price?: number; }
@@ -20,7 +22,6 @@ interface MenuData {
   sectionDrinksTitle?: string; sectionDrinksIcon?: string;
   meats: Meat[]; drinks: Drink[]; slides: Slide[]; 
   isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; 
-  // Configurações do Garçom IA
   aiName?: string;
   aiPersona?: string;
   telegramBotUsername?: string;
@@ -29,11 +30,8 @@ interface MenuData {
 const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
 type IconKey = keyof typeof AVAILABLE_ICONS;
 
-// CORREÇÃO APLICADA: createPortal joga o modal diretamente na raiz do HTML (document.body)
-// Isso impede que qualquer outro container (como o de slides) fique por cima dele.
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
   if (typeof document === 'undefined') return null;
-  
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -503,6 +501,8 @@ const OrderCard: React.FC<{ order: any; onUpdateStatus: (id: string, status: str
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient(); // <--- Inicia o gerenciador de cache
+  
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'ai' | 'settings' | 'reports'>('orders');
   const [menu, setMenu] = useState<MenuData | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
@@ -564,6 +564,10 @@ export default function AdminDashboard() {
     try { 
       await api.updateMenu(storeSlug, updatedMenu); 
       setMenu(updatedMenu); 
+      
+      // FORÇA A LIMPEZA DA MEMÓRIA PARA O CLIENTE VER A MUDANÇA NA HORA
+      queryClient.invalidateQueries({ queryKey: queryKeys.menu(storeSlug) });
+      
       toast.success("Alterações salvas!"); 
     } catch { 
       toast.error("Erro ao salvar."); 
@@ -588,7 +592,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-3">
             <ShareLinks storeSlug={storeSlug} storeName={menu.title} />
-            <button onClick={async () => { const updated = { ...menu, isOpen: !menu.isOpen }; setMenu(updated); try { await api.updateMenu(storeSlug, updated); toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!"); } catch { toast.error("Erro."); } }} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>{menu.isOpen ? 'ABERTO' : 'FECHADO'}</button>
+            <button onClick={async () => { const updated = { ...menu, isOpen: !menu.isOpen }; setMenu(updated); try { await api.updateMenu(storeSlug, updated); queryClient.invalidateQueries({ queryKey: queryKeys.menu(storeSlug) }); toast.success(updated.isOpen ? "Loja Aberta!" : "Loja Fechada!"); } catch { toast.error("Erro."); } }} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>{menu.isOpen ? 'ABERTO' : 'FECHADO'}</button>
             <button onClick={() => supabase.auth.signOut().then(() => navigate('/'))} className="w-10 h-10 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center"><LogOut className="w-5 h-5" /></button>
           </div>
         </div>
