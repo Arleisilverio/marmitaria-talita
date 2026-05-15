@@ -9,7 +9,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send, X, Copy } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -39,6 +39,10 @@ export default function ClientHome() {
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Estados do Modal do Telegram
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [telegramPayload, setTelegramPayload] = useState('');
 
   useEffect(() => { 
     if (location.state?.tab) setActiveTab(location.state.tab); 
@@ -169,17 +173,8 @@ export default function ClientHome() {
     }
     
     const payload = `${slug}__${currentUser.id}`;
-    const telegramUrl = `https://t.me/${botName}?start=${payload}`;
-    
-    // Aviso na tela orientando o usuário
-    toast.success(
-      "O Telegram vai abrir! Quando ele abrir, clique no botão INICIAR (ou Start) no final da tela do chat.", 
-      { duration: 8000, style: { background: '#2AABEE', color: '#fff' } }
-    );
-    
-    setTimeout(() => {
-      window.open(telegramUrl, '_blank');
-    }, 1500);
+    setTelegramPayload(payload);
+    setShowTelegramModal(true); // Mostramos a nova telinha segura em vez de redirecionar direto
   };
 
   const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
@@ -329,6 +324,66 @@ export default function ClientHome() {
       {isStoreAdmin && (
         <motion.button initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"><ShieldAlert size={20}/><span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span></motion.button>
       )}
+
+      {/* Modal de Segurança do Telegram */}
+      <AnimatePresence>
+        {showTelegramModal && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} 
+              className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl"
+            >
+              <div className="flex justify-between items-center p-5 border-b border-white/5 bg-zinc-950/50">
+                <h3 className="text-white font-bold text-lg flex items-center gap-2"><Send className="w-5 h-5 text-[#2AABEE]"/> Conectar com a IA</h3>
+                <button onClick={() => setShowTelegramModal(false)} className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white"><X className="w-4 h-4" /></button>
+              </div>
+              
+              <div className="p-6 space-y-6 text-center">
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Para o garçom saber exatamente quem você é, conecte sua conta seguindo os passos abaixo:
+                </p>
+                
+                <div className="bg-zinc-950 p-4 rounded-xl border border-white/5 text-left">
+                  <p className="text-[10px] text-zinc-500 mb-2 uppercase font-black tracking-wider">Passo 1</p>
+                  <button 
+                    onClick={() => window.open(`https://t.me/${menu.telegramBotUsername?.replace('@', '')}?start=${telegramPayload}`, '_blank')} 
+                    className="w-full bg-[#2AABEE] hover:bg-[#2AABEE]/80 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-[#2AABEE]/20"
+                  >
+                    <Send className="w-5 h-5" /> Abrir o Telegram agora
+                  </button>
+                  <p className="text-xs text-zinc-500 mt-3 italic text-center">Ao abrir, lembre-se de clicar no botão "Iniciar" ou "Start".</p>
+                </div>
+
+                <div className="bg-zinc-950 p-4 rounded-xl border border-white/5 text-left">
+                  <p className="text-[10px] text-zinc-500 mb-2 uppercase font-black tracking-wider">Passo 2 (Se der erro)</p>
+                  <p className="text-sm text-zinc-300 mb-3">Se o robô continuar sem te reconhecer, o seu aparelho bloqueou o link invisível. Apenas copie o comando secreto abaixo e envie para ele manualmente:</p>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      readOnly 
+                      value={`/start ${telegramPayload}`} 
+                      className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-300 outline-none select-all" 
+                    />
+                    <button 
+                      onClick={() => { 
+                        navigator.clipboard.writeText(`/start ${telegramPayload}`); 
+                        toast.success('Comando copiado!'); 
+                      }} 
+                      className="bg-primary/20 text-primary border border-primary/30 px-4 rounded-xl hover:bg-primary hover:text-white transition-colors flex items-center justify-center"
+                      title="Copiar"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

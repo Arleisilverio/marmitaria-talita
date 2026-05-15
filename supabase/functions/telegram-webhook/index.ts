@@ -23,9 +23,8 @@ serve(async (req) => {
 
     const chatId = message.chat.id
     const userText = message.text
-    let aiPromptText = userText; // Texto que enviaremos para a IA
+    let aiPromptText = userText; 
     
-    // Suportar tanto maiúsculas quanto minúsculas
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('telegram_bot_token')
     const openaiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('openai_api_key')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -37,54 +36,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    let currentStoreSlug = null;
-    let currentUserId = null;
-    let chatHistory = [];
-
-    // LÓGICA DE DEEP LINK (Quando o usuário clica no botão do app)
-    if (userText.startsWith('/start')) {
-      const parts = userText.split(' ');
-      if (parts.length > 1) {
-        const payload = parts[1].trim(); 
-        const payloadParts = payload.split('__');
-        currentStoreSlug = payloadParts[0];
-        if (payloadParts.length > 1) currentUserId = payloadParts[1];
-        
-        console.log(`[telegram-webhook] Novo acesso via App. Loja: ${currentStoreSlug}, User: ${currentUserId}`);
-        
-        // Salvamento seguro sem depender de PK no upsert
-        const { data: existingSession } = await supabase.from('telegram_sessions').select('chat_id').eq('chat_id', chatId).maybeSingle();
-        
-        if (existingSession) {
-          await supabase.from('telegram_sessions').update({ 
-            store_slug: currentStoreSlug, 
-            user_id: currentUserId,
-            history: [], 
-            updated_at: new Date().toISOString() 
-          }).eq('chat_id', chatId);
-        } else {
-          await supabase.from('telegram_sessions').insert({ 
-            chat_id: chatId, 
-            store_slug: currentStoreSlug, 
-            user_id: currentUserId,
-            history: [], 
-            updated_at: new Date().toISOString() 
-          });
-        }
-      }
-      
-      // Trocamos o texto feio do start por uma saudação para a IA não se confundir
-      aiPromptText = "Oi, acabei de chegar pelo aplicativo!";
-    } else {
-      // Busca a sessão salva
-      const { data: session } = await supabase.from('telegram_sessions').select('*').eq('chat_id', chatId).maybeSingle();
-      if (session) {
-        currentStoreSlug = session.store_slug;
-        currentUserId = session.user_id;
-        chatHistory = session.history || [];
-      }
-    }
-
+    // Função utilitária de envio
     const sendTelegramMessage = async (text) => {
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -93,20 +45,70 @@ serve(async (req) => {
       }).catch(err => console.error(err));
     }
 
-    // SEGURANÇA: Se não tem ID, manda pro App
+    let currentStoreSlug = null;
+    let currentUserId = null;
+    let chatHistory = [];
+
+    // TENTATIVA DE RECEBER O CÓDIGO
+    if (userText.startsWith('/start')) {
+      const parts = userText.split(' ');
+      
+      // O Telegram enviou o código corretamente junto com o /start!
+      if (parts.length > 1) {
+        const payload = parts.slice(1).join('').trim(); 
+        const payloadParts = payload.split('__');
+        currentStoreSlug = payloadParts[0];
+        if (payloadParts.length > 1) currentUserId = payloadParts[1];
+        
+        console.log(`[telegram-webhook] Sucesso no Deep Link. Loja: ${currentStoreSlug}, User: ${currentUserId}`);
+        
+        const { data: existingSession } = await supabase.from('telegram_sessions').select('chat_id').eq('chat_id', chatId).maybeSingle();
+        
+        const sessionData = { 
+          store_slug: currentStoreSlug, 
+          user_id: currentUserId,
+          history: [], 
+          updated_at: new Date().toISOString() 
+        };
+
+        const { error: dbError } = existingSession 
+          ? await supabase.from('telegram_sessions').update(sessionData).eq('chat_id', chatId)
+          : await supabase.from('telegram_sessions').insert({ chat_id: chatId, ...sessionData });
+
+        if (dbError) {
+          await sendTelegramMessage(`⚠️ Erro interno ao salvar sessão no banco de dados: ${dbError.message}`);
+        }
+        
+        aiPromptText = "Oi, acabei de chegar pelo aplicativo!";
+      } else {
+        // O TELEGRAM ENGOLIU O CÓDIGO! Mandamos o aviso exato.
+        await sendTelegramMessage("⚠️ *Aviso Importante*\n\nVocê enviou apenas o comando `/start` vazio e eu não consegui identificar sua conta.\n\nPor favor, volte ao aplicativo e copie o comando completo gerado na tela (Ex: `/start marmitaria...`) e cole aqui para mim!");
+        return new Response('ok');
+      }
+    } else {
+      // BUSCAR SESSÃO ANTIGA
+      const { data: session } = await supabase.from('telegram_sessions').select('*').eq('chat_id', chatId).maybeSingle();
+      if (session) {
+        currentStoreSlug = session.store_slug;
+        currentUserId = session.user_id;
+        chatHistory = session.history || [];
+      }
+    }
+
+    // SEGURANÇA SE A SESSÃO FALHAR OU NÃO EXISTIR
     if (!currentUserId || !currentStoreSlug) {
-      await sendTelegramMessage("Olá! Para sua segurança, eu só atendo clientes conectados. Por favor, volte ao aplicativo e clique novamente no botão 'Pedir com o Garçom'. *Lembre-se de clicar em INICIAR (ou START) assim que o Telegram abrir.*");
+      await sendTelegramMessage(`⚠️ *Erro de Autenticação*\n\nEu recebi sua mensagem: \`${userText}\`\n\nMas não consegui encontrar sua conta conectada. Por favor, volte ao aplicativo, clique no botão de IA e copie o comando que vai aparecer na tela.`);
       return new Response('ok')
     }
 
-    // PUXAR DADOS DO CLIENTE E DA LOJA
+    // PUXAR DADOS DO BANCO
     const [{ data: userProfile }, { data: storeData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', currentUserId).maybeSingle(),
       supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).maybeSingle()
     ]);
 
     if (!storeData || !storeData.menu_data || !userProfile) {
-      await sendTelegramMessage("Ocorreu um erro ao carregar seus dados ou o cardápio. Tente acessar pelo aplicativo novamente.");
+      await sendTelegramMessage("Ocorreu um erro ao carregar o cardápio. Tente conectar novamente.");
       return new Response('ok')
     }
 
@@ -146,19 +148,7 @@ serve(async (req) => {
           parameters: {
             type: "object",
             properties: {
-              items: {
-                type: "array",
-                description: "Lista de itens pedidos.",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    quantity: { type: "number" },
-                    price: { type: "number" },
-                    size: { type: "string", description: "Tamanho (P, M, G) se aplicável" }
-                  }
-                }
-              },
+              items: { type: "array", description: "Lista de itens pedidos.", items: { type: "object", properties: { name: { type: "string" }, quantity: { type: "number" }, price: { type: "number" }, size: { type: "string", description: "Tamanho (P, M, G) se aplicável" } } } },
               payment_method: { type: "string", enum: ["pix", "dinheiro", "cartao_entrega"] },
               total_amount: { type: "number", description: "Valor total somando produtos e entrega" },
               delivery_type: { type: "string", enum: ["entrega", "retirada"] }
@@ -210,15 +200,10 @@ serve(async (req) => {
             });
 
             messages.push(responseMessage);
-            messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: orderError ? "Erro ao salvar pedido." : "Pedido registrado com sucesso no painel da loja!"
-            });
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: orderError ? "Erro ao salvar pedido." : "Pedido registrado com sucesso no painel da loja!" });
 
             const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+              method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.7 }),
             });
             const secondData = await secondResponse.json();
@@ -231,13 +216,9 @@ serve(async (req) => {
 
       await sendTelegramMessage(replyText);
 
-      const newHistory = [
-        ...chatHistory,
-        { role: 'user', content: aiPromptText },
-        { role: 'assistant', content: replyText }
-      ].slice(-10);
-
+      const newHistory = [...chatHistory, { role: 'user', content: aiPromptText }, { role: 'assistant', content: replyText }].slice(-10);
       await supabase.from('telegram_sessions').update({ history: newHistory }).eq('chat_id', chatId);
+      
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     } catch (openaiErr) {
