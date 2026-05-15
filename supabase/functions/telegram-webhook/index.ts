@@ -18,22 +18,20 @@ serve(async (req) => {
 
     const message = body.message
     if (!message || !message.text) {
-      console.log("[telegram-webhook] Nenhuma mensagem de texto válida encontrada.")
       return new Response('ok')
     }
 
     const chatId = message.chat.id
     const userText = message.text
-    console.log(`[telegram-webhook] Processando mensagem de ${chatId}: ${userText}`)
+    let aiPromptText = userText; // Texto que enviaremos para a IA
     
-    // Suportar tanto maiúsculas quanto minúsculas (às vezes salva minúsculo no Supabase)
+    // Suportar tanto maiúsculas quanto minúsculas
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('telegram_bot_token')
     const openaiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('openai_api_key')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
     if (!botToken || !openaiKey || !supabaseUrl || !supabaseKey) {
-      console.error("[telegram-webhook] ERRO: Variáveis de ambiente ausentes. Verifique o Supabase Secrets.")
       return new Response('Configuration error', { status: 500 })
     }
 
@@ -54,29 +52,32 @@ serve(async (req) => {
         
         console.log(`[telegram-webhook] Novo acesso via App. Loja: ${currentStoreSlug}, User: ${currentUserId}`);
         
-        const { error: upsertError } = await supabase.from('telegram_sessions').upsert({ 
-          chat_id: chatId, 
-          store_slug: currentStoreSlug, 
-          user_id: currentUserId,
-          history: [], 
-          updated_at: new Date().toISOString() 
-        });
-
-        if (upsertError) {
-           console.error("[telegram-webhook] Erro ao salvar sessão no banco:", upsertError);
+        // Salvamento seguro sem depender de PK no upsert
+        const { data: existingSession } = await supabase.from('telegram_sessions').select('chat_id').eq('chat_id', chatId).maybeSingle();
+        
+        if (existingSession) {
+          await supabase.from('telegram_sessions').update({ 
+            store_slug: currentStoreSlug, 
+            user_id: currentUserId,
+            history: [], 
+            updated_at: new Date().toISOString() 
+          }).eq('chat_id', chatId);
+        } else {
+          await supabase.from('telegram_sessions').insert({ 
+            chat_id: chatId, 
+            store_slug: currentStoreSlug, 
+            user_id: currentUserId,
+            history: [], 
+            updated_at: new Date().toISOString() 
+          });
         }
       }
+      
+      // Trocamos o texto feio do start por uma saudação para a IA não se confundir
+      aiPromptText = "Oi, acabei de chegar pelo aplicativo!";
     } else {
       // Busca a sessão salva
-      console.log(`[telegram-webhook] Buscando sessão para o chat ${chatId}`);
-      const { data: session, error: sessionError } = await supabase
-        .from('telegram_sessions')
-        .select('*')
-        .eq('chat_id', chatId)
-        .maybeSingle();
-        
-      if (sessionError) console.error("[telegram-webhook] Erro ao buscar sessão:", sessionError);
-        
+      const { data: session } = await supabase.from('telegram_sessions').select('*').eq('chat_id', chatId).maybeSingle();
       if (session) {
         currentStoreSlug = session.store_slug;
         currentUserId = session.user_id;
@@ -84,31 +85,27 @@ serve(async (req) => {
       }
     }
 
-    // Função de enviar mensagem pro telegram para reaproveitar
     const sendTelegramMessage = async (text) => {
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
-      }).catch(err => console.error("[telegram-webhook] Erro ao enviar mensagem para o Telegram:", err));
+      }).catch(err => console.error(err));
     }
 
     // SEGURANÇA: Se não tem ID, manda pro App
     if (!currentUserId || !currentStoreSlug) {
-      console.warn("[telegram-webhook] Acesso não autorizado ou sessão expirada.");
-      await sendTelegramMessage("Olá! Para sua segurança, eu só atendo clientes conectados. Por favor, volte ao aplicativo e clique novamente no botão 'Pedir com o Garçom'.");
+      await sendTelegramMessage("Olá! Para sua segurança, eu só atendo clientes conectados. Por favor, volte ao aplicativo e clique novamente no botão 'Pedir com o Garçom'. *Lembre-se de clicar em INICIAR (ou START) assim que o Telegram abrir.*");
       return new Response('ok')
     }
 
     // PUXAR DADOS DO CLIENTE E DA LOJA
-    console.log(`[telegram-webhook] Puxando dados de perfil (${currentUserId}) e loja (${currentStoreSlug})`);
-    const [{ data: userProfile, error: profileErr }, { data: storeData, error: storeErr }] = await Promise.all([
+    const [{ data: userProfile }, { data: storeData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', currentUserId).maybeSingle(),
       supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).maybeSingle()
     ]);
 
-    if (profileErr || storeErr || !storeData || !storeData.menu_data || !userProfile) {
-      console.error("[telegram-webhook] Erro de banco de dados ou faltou dado.");
+    if (!storeData || !storeData.menu_data || !userProfile) {
       await sendTelegramMessage("Ocorreu um erro ao carregar seus dados ou o cardápio. Tente acessar pelo aplicativo novamente.");
       return new Response('ok')
     }
@@ -175,11 +172,9 @@ serve(async (req) => {
     const messages = [
       { role: 'system', content: systemPrompt },
       ...chatHistory,
-      { role: 'user', content: userText }
+      { role: 'user', content: aiPromptText }
     ];
 
-    console.log(`[telegram-webhook] Chamando OpenAI para o chat ${chatId}`);
-    
     try {
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -188,8 +183,6 @@ serve(async (req) => {
       });
 
       if (!aiResponse.ok) {
-        const errorData = await aiResponse.json();
-        console.error(`[telegram-webhook] ERRO OpenAI API:`, JSON.stringify(errorData));
         await sendTelegramMessage("Ops! Meu cérebro de Inteligência Artificial deu uma travadinha (Erro na OpenAI). Por favor, avise o dono da loja!");
         return new Response('ok')
       }
@@ -199,7 +192,6 @@ serve(async (req) => {
       let replyText = responseMessage.content;
 
       if (responseMessage.tool_calls) {
-        console.log(`[telegram-webhook] IA decidiu registrar pedido! Chamando tool_calls...`);
         for (const toolCall of responseMessage.tool_calls) {
           if (toolCall.function.name === 'register_order') {
             const args = JSON.parse(toolCall.function.arguments);
@@ -237,28 +229,22 @@ serve(async (req) => {
 
       if (!replyText) replyText = "Desculpe, tive um problema de comunicação aqui. Pode repetir?";
 
-      console.log(`[telegram-webhook] Enviando resposta para ${chatId}`);
       await sendTelegramMessage(replyText);
 
       const newHistory = [
         ...chatHistory,
-        { role: 'user', content: userText },
+        { role: 'user', content: aiPromptText },
         { role: 'assistant', content: replyText }
       ].slice(-10);
 
       await supabase.from('telegram_sessions').update({ history: newHistory }).eq('chat_id', chatId);
-      
-      console.log(`[telegram-webhook] Processo finalizado com sucesso para ${chatId}`);
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     } catch (openaiErr) {
-      console.error("[telegram-webhook] Erro ao tentar conectar com a OpenAI:", openaiErr);
       await sendTelegramMessage("Estou enfrentando problemas técnicos de conexão. Tente novamente mais tarde!");
       return new Response('ok')
     }
-
   } catch (error) {
-    console.error("[telegram-webhook] ERRO CRÍTICO:", error)
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })

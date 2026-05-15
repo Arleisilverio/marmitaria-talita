@@ -38,7 +38,7 @@ export default function ClientHome() {
   const [isProfileComplete, setIsProfileComplete] = useState(true);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [currentUser, setCurrentUser] = useState<any>(null); // Guardar o usuário logado
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => { 
     if (location.state?.tab) setActiveTab(location.state.tab); 
@@ -150,7 +150,6 @@ export default function ClientHome() {
     toast.success(`${drink.name} adicionado!`);
   };
 
-  // Lógica segura do Telegram
   const handleTelegramOrder = () => {
     if (!currentUser) {
       toast.error("Você precisa estar logado para falar com a IA.");
@@ -169,10 +168,18 @@ export default function ClientHome() {
       return;
     }
     
-    // O pulo do gato: Enviamos "slug__userid"
     const payload = `${slug}__${currentUser.id}`;
     const telegramUrl = `https://t.me/${botName}?start=${payload}`;
-    window.open(telegramUrl, '_blank');
+    
+    // Aviso na tela orientando o usuário
+    toast.success(
+      "O Telegram vai abrir! Quando ele abrir, clique no botão INICIAR (ou Start) no final da tela do chat.", 
+      { duration: 8000, style: { background: '#2AABEE', color: '#fff' } }
+    );
+    
+    setTimeout(() => {
+      window.open(telegramUrl, '_blank');
+    }, 1500);
   };
 
   const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
