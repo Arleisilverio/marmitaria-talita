@@ -62,6 +62,12 @@ export const api = {
   updateOrderStatus: async (id: string, status: string) => {
     const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select().maybeSingle();
     if (error) throw error;
+
+    // Dispara a notificação via Telegram de forma invisível em background
+    supabase.functions.invoke('notify-order-status', {
+      body: { orderId: id, status }
+    }).catch(err => console.error("[Telegram Notification Error]", err));
+
     return data;
   },
 
@@ -94,9 +100,7 @@ export const api = {
     if (error) throw new Error("Erro ao excluir lojista.");
   },
 
-  // Nova função: Deleta admin E store_settings
   deleteAppAdminWithStore: async (id: string, slug: string) => {
-    // Primeiro deleta store_settings
     const { error: storeError } = await supabase
       .from('store_settings')
       .delete()
@@ -104,10 +108,8 @@ export const api = {
     
     if (storeError) {
       console.error("Erro ao deletar store_settings:", storeError);
-      // Continua mesmo se store_settings não existir
     }
     
-    // Depois deleta o admin
     const { error: adminError } = await supabase.from('app_admins').delete().eq('id', id);
     if (adminError) throw new Error("Erro ao excluir lojista.");
   },
