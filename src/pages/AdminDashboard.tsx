@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL, cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode, BarChart } from 'lucide-react';
+import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,7 +12,7 @@ import { QRCodeSVG } from 'qrcode.react';
 interface Drink { id: string; name: string; price: number; is_available?: boolean; image?: string; }
 interface Meat { id: string; name: string; }
 interface Slide { id: string; image: string; title: string; description: string; }
-interface MenuData { title: string; description: string; image: string; prices: { p: number; m: number; g: number }; meats: Meat[]; drinks: Drink[]; slides: Slide[]; isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; }
+interface MenuData { title: string; description: string; image: string; prices: { p: number; m: number; g: number }; meatsTitle?: string; meats: Meat[]; drinks: Drink[]; slides: Slide[]; isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; }
 
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
   <AnimatePresence>{isOpen && (
@@ -53,6 +53,42 @@ const ImageUploader = ({ value, onChange, label }: { value: string; onChange: (v
   );
 };
 
+// Componente para Título Editável
+const EditableTitle = ({ initialTitle, onSave, icon: Icon }: { initialTitle: string, onSave: (val: string) => void, icon: any }) => {
+  const [title, setTitle] = useState(initialTitle);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    if (title.trim() !== initialTitle) {
+      onSave(title.trim() || 'Complementos');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      <Icon className="text-primary w-6 h-6 flex-shrink-0" />
+      {isEditing ? (
+        <input
+          autoFocus
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
+          className="bg-transparent border-b border-primary text-white font-bold text-xl outline-none px-1 py-0 w-full max-w-xs"
+          placeholder="Nome da Categoria"
+        />
+      ) : (
+        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsEditing(true)}>
+          <h2 className="text-white font-bold text-xl">{title}</h2>
+          <Edit2 className="w-4 h-4 text-zinc-600 group-hover:text-primary transition-colors" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: Drink) => void; onCancel: () => void }) => {
   const [name, setName] = useState(drink?.name || '');
   const [price, setPrice] = useState(drink?.price?.toString() || '');
@@ -74,7 +110,7 @@ const MeatEditor = ({ meat, onSave, onCancel }: { meat?: Meat; onSave: (m: Meat)
   const [name, setName] = useState(meat?.name || '');
   return (
     <div className="space-y-4">
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome da Carne/Complemento</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango Grelhado" /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Complemento</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango, Morango, Molho..." /></div>
       <div className="flex gap-3 pt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim() }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
@@ -106,9 +142,9 @@ const MainDishEditor = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData
   const handleSave = async () => { if (!localMenu.title.trim()) return toast.error("Informe o nome do prato"); setSaving(true); await onSave(localMenu); setSaving(false); };
   return (
     <div className="space-y-6">
-      <ImageUploader value={localMenu.image} onChange={img => setLocalMenu({ ...localMenu, image: img })} label="Foto do Prato" />
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><Type className="w-4 h-4" /> Nome do Prato</label><input type="text" value={localMenu.title} onChange={e => setLocalMenu({ ...localMenu, title: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary text-lg font-bold" placeholder="Ex: Marmita do Dia" /></div>
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição</label><textarea value={localMenu.description} onChange={e => setLocalMenu({ ...localMenu, description: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={3} placeholder="Descreva o prato..." /></div>
+      <ImageUploader value={localMenu.image} onChange={img => setLocalMenu({ ...localMenu, image: img })} label="Foto do Produto" />
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><Type className="w-4 h-4" /> Nome do Produto Principal</label><input type="text" value={localMenu.title} onChange={e => setLocalMenu({ ...localMenu, title: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary text-lg font-bold" placeholder="Ex: Marmita do Dia, Açaí Tradicional..." /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição</label><textarea value={localMenu.description} onChange={e => setLocalMenu({ ...localMenu, description: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={3} placeholder="Descreva os ingredientes..." /></div>
       <div>
         <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Preços por Tamanho</label>
         <div className="grid grid-cols-3 gap-4">
@@ -117,7 +153,7 @@ const MainDishEditor = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData
           ))}
         </div>
       </div>
-      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Prato</>}</button>
+      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Produto Principal</>}</button>
     </div>
   );
 };
@@ -161,7 +197,7 @@ const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Dr
   return (
     <>
       <div className="space-y-4">
-        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhuma bebida cadastrada</p><p className="text-xs text-zinc-600 mt-1">Adicione refrigerantes, sucos, águas...</p></div> : drinks.map(drink => (
+        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum item extra cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione refrigerantes, sucos, sobremesas...</p></div> : drinks.map(drink => (
           <div key={drink.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center gap-4">
             {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-zinc-900 flex items-center justify-center"><Coffee className="w-6 h-6 text-zinc-700" /></div>}
             <div className="flex-1"><p className="text-white font-bold">{drink.name}</p><p className="text-primary font-bold text-sm">{formatBRL(drink.price)}</p></div>
@@ -169,13 +205,13 @@ const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Dr
             <div className="flex items-center gap-1">
               <button onClick={() => onUpdate(drinks.map(d => d.id === drink.id ? { ...d, is_available: !d.is_available } : d))} className="p-2 hover:bg-white/5 rounded-lg">{drink.is_available !== false ? <Eye className="w-4 h-4 text-green-500" /> : <EyeOff className="w-4 h-4 text-zinc-500" />}</button>
               <button onClick={() => { setEditingDrink(drink); setShowModal(true); }} className="p-2 hover:bg-white/5 rounded-lg text-primary"><Edit2 className="w-4 h-4" /></button>
-              <button onClick={() => { if (confirm('Remover esta bebida?')) onUpdate(drinks.filter(d => d.id !== drink.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => { if (confirm('Remover este item?')) onUpdate(drinks.filter(d => d.id !== drink.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         ))}
-        <button onClick={() => { setEditingDrink(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Bebida</button>
+        <button onClick={() => { setEditingDrink(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Extra/Bebida</button>
       </div>
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingDrink ? "Editar Bebida" : "Nova Bebida"}><DrinkEditor drink={editingDrink} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingDrink ? "Editar Item" : "Novo Item"}><DrinkEditor drink={editingDrink} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
     </>
   );
 };
@@ -187,7 +223,7 @@ const MeatsManager = ({ meats, onUpdate }: { meats: Meat[]; onUpdate: (m: Meat[]
   return (
     <>
       <div className="space-y-3">
-        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione tipos de carne, adicionais...</p></div> : meats.map((meat) => (
+        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione acompanhamentos, adicionais...</p></div> : meats.map((meat) => (
           <div key={meat.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3"><GripVertical className="w-4 h-4 text-zinc-600" /><Beef className="w-5 h-5 text-primary/50" /><span className="text-white font-bold">{meat.name}</span></div>
             <div className="flex items-center gap-1">
@@ -231,12 +267,97 @@ const SlidesManager = ({ slides, onUpdate }: { slides: Slide[]; onUpdate: (s: Sl
 };
 
 // ======================================================
-// COMPONENTE: COMPARTILHAR LINKS E QR CODE
+// COMPONENTE: RELATÓRIOS E FATURAMENTO
 // ======================================================
+const ReportsView = ({ orders }: { orders: any[] }) => {
+  const [dateRange, setDateRange] = useState({
+    start: format(new Date(), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd')
+  });
+
+  const filteredOrders = orders.filter(o => {
+    const orderDate = new Date(o.created_at);
+    // Usando date-fns para garantir que cobrimos o dia todo corretamente
+    const start = startOfDay(new Date(dateRange.start + 'T00:00:00'));
+    const end = endOfDay(new Date(dateRange.end + 'T00:00:00'));
+    
+    // Consideramos apenas pedidos entregues/concluídos para o faturamento real
+    return orderDate >= start && orderDate <= end && o.status === 'entregue';
+  });
+
+  const totalRevenue = filteredOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  
+  const paymentMethods = filteredOrders.reduce((acc, o) => {
+    const method = o.payment_method || 'Outro';
+    acc[method] = (acc[method] || 0) + Number(o.total_amount);
+    return acc;
+  }, {} as Record<string, number>);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl flex flex-wrap gap-4 items-end shadow-lg">
+        <div className="flex-1 min-w-[150px]">
+          <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Data Inicial</label>
+          <input 
+            type="date" 
+            value={dateRange.start} 
+            onChange={e => setDateRange({...dateRange, start: e.target.value})} 
+            className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" 
+            style={{ colorScheme: 'dark' }}
+          />
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Data Final</label>
+          <input 
+            type="date" 
+            value={dateRange.end} 
+            onChange={e => setDateRange({...dateRange, end: e.target.value})} 
+            className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" 
+            style={{ colorScheme: 'dark' }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-primary/10 border border-primary/20 p-6 rounded-3xl relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-10"><DollarSign className="w-24 h-24 text-primary" /></div>
+          <p className="text-[10px] text-primary uppercase font-black tracking-widest mb-1 relative z-10">Faturamento Total</p>
+          <p className="text-4xl font-black text-white relative z-10">{formatBRL(totalRevenue)}</p>
+        </div>
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-5"><Receipt className="w-24 h-24 text-white" /></div>
+          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Pedidos Concluídos</p>
+          <p className="text-4xl font-black text-white relative z-10">{filteredOrders.length}</p>
+        </div>
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-5"><BarChart className="w-24 h-24 text-white" /></div>
+          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Ticket Médio</p>
+          <p className="text-4xl font-black text-white relative z-10">{formatBRL(filteredOrders.length ? totalRevenue / filteredOrders.length : 0)}</p>
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl shadow-lg">
+        <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /> Faturamento por Pagamento</h3>
+        <div className="space-y-3">
+          {Object.entries(paymentMethods).map(([method, amount]) => (
+            <div key={method} className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
+              <span className="text-zinc-400 uppercase text-xs font-bold tracking-widest">{method.replace('_', ' ')}</span>
+              <span className="text-white font-bold text-lg">{formatBRL(amount as number)}</span>
+            </div>
+          ))}
+          {Object.keys(paymentMethods).length === 0 && (
+            <div className="text-center py-10 text-zinc-600">
+              <p>Nenhum dado financeiro encontrado neste período.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ShareLinks = ({ storeSlug, storeName }: { storeSlug: string; storeName: string }) => {
   const [showModal, setShowModal] = useState(false);
-  
-  // Obter a URL base do site
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://marmitaria.com';
   const storeUrl = `${baseUrl}/${storeSlug}`;
   const siteUrl = baseUrl;
@@ -251,98 +372,24 @@ const ShareLinks = ({ storeSlug, storeName }: { storeSlug: string; storeName: st
   
   return (
     <>
-      <button 
-        onClick={() => setShowModal(true)}
-        className="bg-primary/10 border border-primary/20 px-4 py-2 rounded-xl text-primary font-bold text-xs flex items-center gap-2 hover:bg-primary/20 transition-colors"
-      >
-        <Share2 className="w-4 h-4" /> Compartilhar
-      </button>
-      
+      <button onClick={() => setShowModal(true)} className="bg-primary/10 border border-primary/20 px-4 py-2 rounded-xl text-primary font-bold text-xs flex items-center gap-2 hover:bg-primary/20 transition-colors"><Share2 className="w-4 h-4" /> Compartilhar</button>
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Compartilhar Loja">
         <div className="space-y-6">
-          {/* QR CODE */}
           <div className="bg-zinc-800/50 p-5 rounded-2xl border border-white/5 text-center">
-            <div className="flex items-center gap-2 mb-4 justify-center">
-              <QrCode className="w-5 h-5 text-primary" />
-              <h4 className="text-white font-bold">QR Code da Loja</h4>
-            </div>
+            <div className="flex items-center gap-2 mb-4 justify-center"><QrCode className="w-5 h-5 text-primary" /><h4 className="text-white font-bold">QR Code da Loja</h4></div>
             <p className="text-zinc-500 text-xs mb-4">Escaneie este código para acessar a loja diretamente</p>
-            <div className="bg-white p-4 rounded-2xl inline-block">
-              <QRCodeSVG 
-                value={storeUrl}
-                size={180}
-                level="H"
-                bgColor="#ffffff"
-                fgColor="#000000"
-              />
-            </div>
+            <div className="bg-white p-4 rounded-2xl inline-block"><QRCodeSVG value={storeUrl} size={180} level="H" bgColor="#ffffff" fgColor="#000000" /></div>
             <p className="text-zinc-400 text-xs mt-4 font-mono">{storeUrl}</p>
           </div>
-          
-          {/* Link da Loja */}
           <div className="bg-zinc-800/50 p-5 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <Link2 className="w-5 h-5 text-primary" />
-              <h4 className="text-white font-bold">Link da Sua Loja</h4>
-            </div>
+            <div className="flex items-center gap-2 mb-3"><Link2 className="w-5 h-5 text-primary" /><h4 className="text-white font-bold">Link da Sua Loja</h4></div>
             <p className="text-zinc-500 text-xs mb-4">Compartilhe este link para que seus clientes acessem diretamente sua loja.</p>
-            <div className="flex items-center gap-2">
-              <input 
-                type="text" 
-                readOnly 
-                value={storeUrl}
-                className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate"
-              />
-              <button 
-                onClick={() => copyToClipboard(storeUrl, 'Link da loja')}
-                className="bg-primary p-3 rounded-xl text-white hover:bg-primary/80 transition-colors"
-                title="Copiar link"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-              <a 
-                href={storeUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors"
-                title="Abrir link"
-              >
-                <ExternalLink className="w-5 h-5" />
-              </a>
-            </div>
+            <div className="flex items-center gap-2"><input type="text" readOnly value={storeUrl} className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate" /><button onClick={() => copyToClipboard(storeUrl, 'Link da loja')} className="bg-primary p-3 rounded-xl text-white hover:bg-primary/80 transition-colors" title="Copiar link"><Copy className="w-5 h-5" /></button><a href={storeUrl} target="_blank" rel="noopener noreferrer" className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors" title="Abrir link"><ExternalLink className="w-5 h-5" /></a></div>
           </div>
-          
-          {/* Link do Site (Vitrine) */}
           <div className="bg-zinc-800/50 p-5 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <Share2 className="w-5 h-5 text-secondary" />
-              <h4 className="text-white font-bold">Link do Site (Vitrine)</h4>
-            </div>
+            <div className="flex items-center gap-2 mb-3"><Share2 className="w-5 h-5 text-secondary" /><h4 className="text-white font-bold">Link do Site (Vitrine)</h4></div>
             <p className="text-zinc-500 text-xs mb-4">Link da vitrine com todas as lojas. Use para mostrar o aplicativo.</p>
-            <div className="flex items-center gap-2">
-              <input 
-                type="text" 
-                readOnly 
-                value={siteUrl}
-                className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate"
-              />
-              <button 
-                onClick={() => copyToClipboard(siteUrl, 'Link do site')}
-                className="bg-secondary p-3 rounded-xl text-white hover:bg-secondary/80 transition-colors"
-                title="Copiar link"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-              <a 
-                href={siteUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors"
-                title="Abrir link"
-              >
-                <ExternalLink className="w-5 h-5" />
-              </a>
-            </div>
+            <div className="flex items-center gap-2"><input type="text" readOnly value={siteUrl} className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate" /><button onClick={() => copyToClipboard(siteUrl, 'Link do site')} className="bg-secondary p-3 rounded-xl text-white hover:bg-secondary/80 transition-colors" title="Copiar link"><Copy className="w-5 h-5" /></button><a href={siteUrl} target="_blank" rel="noopener noreferrer" className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors" title="Abrir link"><ExternalLink className="w-5 h-5" /></a></div>
           </div>
         </div>
       </Modal>
@@ -384,7 +431,7 @@ const OrderCard: React.FC<{ order: any; onUpdateStatus: (id: string, status: str
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports'>('orders');
   const [menu, setMenu] = useState<MenuData | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -414,7 +461,20 @@ export default function AdminDashboard() {
   const loadStoreData = async (slug: string) => {
     try {
       const [menuData, ordersData] = await Promise.all([api.getMenu(slug), api.getOrders(slug)]);
-      setMenu({ title: menuData?.title || '', description: menuData?.description || '', image: menuData?.image || '', prices: menuData?.prices || { p: 0, m: 0, g: 0 }, meats: menuData?.meats || [], drinks: menuData?.drinks || [], slides: menuData?.slides || [], isOpen: menuData?.isOpen ?? true, hasDelivery: menuData?.hasDelivery ?? true, deliveryFee: menuData?.deliveryFee ?? 5, prepTime: menuData?.prepTime || { min: 30, max: 50 } });
+      setMenu({ 
+        title: menuData?.title || '', 
+        description: menuData?.description || '', 
+        image: menuData?.image || '', 
+        prices: menuData?.prices || { p: 0, m: 0, g: 0 }, 
+        meatsTitle: menuData?.meatsTitle || 'Carnes / Complementos',
+        meats: menuData?.meats || [], 
+        drinks: menuData?.drinks || [], 
+        slides: menuData?.slides || [], 
+        isOpen: menuData?.isOpen ?? true, 
+        hasDelivery: menuData?.hasDelivery ?? true, 
+        deliveryFee: menuData?.deliveryFee ?? 5, 
+        prepTime: menuData?.prepTime || { min: 30, max: 50 } 
+      });
       setOrders(ordersData);
     } catch (err) { console.error("Erro:", err); toast.error("Erro ao carregar dados."); } finally { setLoading(false); }
   };
@@ -444,9 +504,10 @@ export default function AdminDashboard() {
         </div>
       </header>
       <main className="max-w-6xl mx-auto p-4 md:p-8">
-        <div className="flex gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5">
+        <div className="flex gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5 flex-wrap">
           <button onClick={() => setActiveTab('orders')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'orders' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Receipt className="w-4 h-4" /> Pedidos</button>
           <button onClick={() => setActiveTab('menu')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'menu' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Package className="w-4 h-4" /> Cardápio</button>
+          <button onClick={() => setActiveTab('reports')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'reports' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><BarChart className="w-4 h-4" /> Relatórios</button>
           <button onClick={() => setActiveTab('settings')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'settings' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Settings className="w-4 h-4" /> Configs</button>
         </div>
         <AnimatePresence mode="wait">
@@ -460,10 +521,23 @@ export default function AdminDashboard() {
           )}
           {activeTab === 'menu' && (
             <motion.div key="menu" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Utensils className="text-primary w-6 h-6" /> Prato Principal</h2><MainDishEditor menu={menu} onSave={handleSavePart} /></div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Beef className="text-primary w-6 h-6" /> Carnes / Complementos</h2><MeatsManager meats={menu.meats} onUpdate={meats => handleSavePart({ ...menu, meats })} /></div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Coffee className="text-primary w-6 h-6" /> Bebidas</h2><DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} /></div>
+              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Utensils className="text-primary w-6 h-6" /> Produto Principal</h2><MainDishEditor menu={menu} onSave={handleSavePart} /></div>
+              <div className="glass-card p-6 rounded-3xl border border-white/5">
+                {/* Título Editável da Seção de Complementos */}
+                <EditableTitle 
+                  initialTitle={menu.meatsTitle || 'Carnes / Complementos'} 
+                  icon={Beef} 
+                  onSave={(newTitle) => handleSavePart({ ...menu, meatsTitle: newTitle })} 
+                />
+                <MeatsManager meats={menu.meats} onUpdate={meats => handleSavePart({ ...menu, meats })} />
+              </div>
+              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Coffee className="text-primary w-6 h-6" /> Bebidas / Extras</h2><DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} /></div>
               <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Layers className="text-primary w-6 h-6" /> Slides do Carrossel</h2><SlidesManager slides={menu.slides} onUpdate={slides => handleSavePart({ ...menu, slides })} /></div>
+            </motion.div>
+          )}
+          {activeTab === 'reports' && (
+            <motion.div key="reports" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <ReportsView orders={orders} />
             </motion.div>
           )}
           {activeTab === 'settings' && <motion.div key="settings" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}><GeneralSettings menu={menu} onSave={handleSavePart} /></motion.div>}
