@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
-import { Leaf, Store, ArrowRight, Clock, ArrowLeft, LogOut } from 'lucide-react';
+import { Store, ArrowRight, Clock, ArrowLeft, LogOut, Pizza, Coffee, Utensils, Beef, Package, Flame, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'react-hot-toast';
+
+// Ícones que vão compor o fundo estilo WhatsApp
+const BACKGROUND_ICONS = [Pizza, Coffee, Utensils, Beef, Package, Flame, Star, Store];
 
 export default function Marketplace() {
   const [stores, setStores] = useState<any[]>([]);
@@ -96,7 +99,16 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-background selection:bg-primary/30">
+    <div className="min-h-screen bg-background selection:bg-primary/30 relative overflow-hidden">
+      
+      {/* BACKGROUND ESTILO WHATSAPP (Rabiscos Fast Food) */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.03] flex flex-wrap justify-center items-center gap-12 p-8 -rotate-6 scale-110">
+        {Array.from({ length: 80 }).map((_, i) => {
+          const Icon = BACKGROUND_ICONS[i % BACKGROUND_ICONS.length];
+          return <Icon key={i} className="w-16 h-16 text-white" strokeWidth={1.5} />;
+        })}
+      </div>
+
       {/* Header com Login/Logout */}
       <div className="fixed top-8 right-8 z-50 flex items-center gap-4">
         {user ? (
@@ -106,7 +118,7 @@ export default function Marketplace() {
               onClick={handleLogout}
               className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
             >
-              <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all">
+              <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all border border-white/5">
                 <LogOut className="w-5 h-5" />
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Sair</span>
@@ -119,7 +131,7 @@ export default function Marketplace() {
             onClick={() => navigate('/login')}
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
           >
-            <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(226,114,91,0.4)] transition-all">
+            <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(226,114,91,0.4)] transition-all border border-white/5">
               <ArrowLeft className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0">Login</span>
@@ -128,9 +140,9 @@ export default function Marketplace() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative min-h-[50vh] flex items-center justify-center overflow-hidden py-20">
+      <div className="relative min-h-[55vh] flex items-center justify-center overflow-hidden py-20 z-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(226,114,91,0.15),transparent_70%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background" />
         
         <div className="relative z-10 text-center px-4 w-full max-w-4xl">
           <motion.div 
@@ -139,8 +151,8 @@ export default function Marketplace() {
             className="flex items-center justify-center gap-3 mb-6"
           >
             <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-primary/50" />
-            <Leaf className="text-primary w-6 h-6 animate-bounce-slow" />
-            <span className="text-primary font-mono text-[10px] font-bold tracking-[0.4em] uppercase">Marmitaria Premium</span>
+            <Store className="text-primary w-6 h-6 animate-pulse" />
+            <span className="text-primary font-mono text-[10px] font-bold tracking-[0.4em] uppercase">Praça de Alimentação</span>
             <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-primary/50" />
           </motion.div>
 
@@ -168,14 +180,14 @@ export default function Marketplace() {
             transition={{ delay: 0.2 }}
             className="text-zinc-400 max-w-lg mx-auto mb-10 text-lg font-medium leading-relaxed"
           >
-            Comida caseira de verdade, preparada com carinho e entregue com rapidez. Escolha sua favorita agora.
+            As melhores opções da região, preparadas na hora e entregues com rapidez. Escolha sua favorita agora.
           </motion.p>
           
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/login')}
-            className="group relative px-10 py-5 bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:border-primary/50"
+            className="group relative px-10 py-5 bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:border-primary/50 backdrop-blur-md"
           >
             <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="relative text-xs font-black uppercase tracking-[0.3em] text-white group-hover:text-primary transition-colors">
@@ -186,7 +198,7 @@ export default function Marketplace() {
       </div>
 
       {/* Stores Grid */}
-      <main className="max-w-7xl mx-auto px-6 pb-24">
+      <main className="relative max-w-7xl mx-auto px-6 pb-24 z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -198,9 +210,9 @@ export default function Marketplace() {
               <Store className="text-primary w-6 h-6" />
               <h2 className="text-white font-heading text-3xl font-black uppercase tracking-tight">Vitrine de Lojas</h2>
             </div>
-            <p className="text-zinc-500 font-medium">As melhores marmitarias da região em um só lugar</p>
+            <p className="text-zinc-500 font-medium">Os melhores pratos e lanches em um só lugar</p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono text-zinc-600 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full">
+          <div className="flex items-center gap-4 text-xs font-mono text-zinc-600 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full backdrop-blur-md">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             {stores.length} Lojas Online
           </div>
@@ -219,7 +231,7 @@ export default function Marketplace() {
               </div>
               <h3 className="text-white text-xl font-bold mb-3 uppercase tracking-tighter">Nenhuma loja cadastrada</h3>
               <p className="text-zinc-500 font-medium max-w-xs mx-auto mb-8">
-                Ainda não temos marmitarias disponíveis. Se você é lojista, entre em contato com o administrador para criar sua loja.
+                Ainda não temos lojas disponíveis. Se você é lojista, entre em contato com o administrador para criar sua loja.
               </p>
               {user ? (
                 <button 
@@ -290,14 +302,14 @@ export default function Marketplace() {
                       {store.title}
                     </h3>
                     <p className="text-zinc-500 text-sm leading-relaxed line-clamp-2 mb-8 font-medium">
-                      {store.description || "O melhor tempero da região, preparado com ingredientes frescos e selecionados."}
+                      {store.description || "O melhor sabor da região, preparado com ingredientes frescos e selecionados."}
                     </p>
                     
                     <div className="flex items-center justify-between mt-auto pt-8 border-t border-white/5">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 text-zinc-400">
                           <Clock size={14} className="text-primary" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Tempo de Entrega</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">Tempo Médio</span>
                         </div>
                         <span className="text-white text-xs font-bold">35 - 50 min</span>
                       </div>
@@ -306,7 +318,7 @@ export default function Marketplace() {
                         whileHover={{ x: 5 }}
                         className="flex items-center gap-2 bg-primary text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
                       >
-                        <span className="text-[10px] font-black uppercase tracking-wider">Cardápio</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider">Ver Loja</span>
                         <ArrowRight size={16} />
                       </motion.div>
                     </div>
@@ -318,14 +330,14 @@ export default function Marketplace() {
         )}
       </main>
 
-      {/* Footer Premium */}
-      <footer className="py-20 border-t border-white/5 bg-zinc-950/50">
+      {/* Footer Neutro */}
+      <footer className="relative py-20 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="flex items-center gap-3">
              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-               <Leaf className="text-white w-6 h-6" />
+               <Store className="text-white w-6 h-6" />
              </div>
-             <span className="text-white font-heading font-black text-xl uppercase tracking-tighter">Marmitaria <span className="text-primary">Talita</span></span>
+             <span className="text-white font-heading font-black text-xl uppercase tracking-tighter">PRAÇA <span className="text-primary">DA QUEBRADA</span></span>
           </div>
           
           <div className="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
@@ -336,7 +348,7 @@ export default function Marketplace() {
           </div>
 
           <p className="text-zinc-700 text-[10px] uppercase font-mono tracking-[0.2em]">
-            &copy; 2024 Platform • Powered by Antigravity
+            &copy; 2024 Platform • Fast Food Delivery
           </p>
         </div>
       </footer>
