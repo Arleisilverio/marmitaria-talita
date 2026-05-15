@@ -9,13 +9,16 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ShieldOff } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
 
 const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.3 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20, filter: 'blur(10px)' }, show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring', stiffness: 100, damping: 15 } } };
+
+const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
+type IconKey = keyof typeof AVAILABLE_ICONS;
 
 export default function ClientHome() {
   const { slug } = useParams();
@@ -115,7 +118,7 @@ export default function ClientHome() {
   if (loading || !menu) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-white">
       <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-      <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Preparando Marmitaria...</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-zinc-500">Carregando Loja...</p>
     </div>
   );
 
@@ -146,7 +149,7 @@ export default function ClientHome() {
 
   const activeSlides = menu.slides?.length > 0 
     ? menu.slides 
-    : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor caseiro todos os dias' }];
+    : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor que você merece' }];
 
   const handleAddDish = () => {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
@@ -185,6 +188,10 @@ export default function ClientHome() {
     toast.success(`${drink.name} adicionado!`);
   };
 
+  // Dinamic Icons
+  const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
+  const DrinksIcon = AVAILABLE_ICONS[(menu.sectionDrinksIcon as IconKey)] || AVAILABLE_ICONS.Coffee;
+
   return (
     <div className="min-h-screen pb-32 md:pb-12 bg-background">
       {/* HEADER */}
@@ -199,8 +206,8 @@ export default function ClientHome() {
               <ArrowLeft size={20} />
             </button>
             <div className="flex items-center gap-2">
-              <Leaf className="text-secondary w-6 h-6" />
-              <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter">
+              <Leaf className="text-secondary w-6 h-6 hidden md:block" />
+              <h1 className="font-heading text-xl font-black text-white uppercase tracking-tighter truncate max-w-[150px] md:max-w-none">
                 {menu.title}
               </h1>
             </div>
@@ -222,12 +229,12 @@ export default function ClientHome() {
             <button onClick={() => setActiveTab('profile')} className={cn("text-xs font-bold uppercase", activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>Perfil</button>
             {isStoreAdmin && (
               <button onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="text-xs font-bold uppercase text-primary border border-primary/20 px-3 py-1 rounded-full flex items-center gap-1">
-                <ShieldAlert size={14}/> {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
+                <ShieldAlert size={14}/> Painel
               </button>
             )}
           </nav>
 
-          <div className={cn("px-3 py-1 rounded-full text-[10px] font-bold border", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>
+          <div className={cn("px-3 py-1 rounded-full text-[10px] font-bold border shrink-0", menu.isOpen ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20")}>
             {menu.isOpen ? 'ABERTO' : 'FECHADO'}
           </div>
         </div>
@@ -240,14 +247,14 @@ export default function ClientHome() {
               
               {/* CARROSSEL */}
               <section className="px-container mt-6">
-                <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5">
+                <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl">
                    <AnimatePresence mode="wait">
                      <motion.div key={currentSlide} initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.8 }} className="absolute inset-0">
                        <img className="w-full h-full object-cover opacity-60" src={activeSlides[currentSlide].image} alt="Destaque" />
                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
-                       <div className="absolute bottom-12 left-10 max-w-lg">
+                       <div className="absolute bottom-12 left-6 md:left-10 max-w-lg pr-6">
                           <h2 className="font-heading text-3xl md:text-5xl font-bold text-white mb-2 tracking-tight">{activeSlides[currentSlide].title}</h2>
-                          <p className="text-secondary font-mono text-sm md:text-lg">{activeSlides[currentSlide].description}</p>
+                          <p className="text-primary font-mono text-sm md:text-lg">{activeSlides[currentSlide].description}</p>
                        </div>
                      </motion.div>
                    </AnimatePresence>
@@ -272,29 +279,29 @@ export default function ClientHome() {
 
               {/* PRATO PRINCIPAL */}
               <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
-                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative">
+                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative shadow-2xl border border-white/5">
                   <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
-                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider">
-                    Para Hoje
+                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider backdrop-blur-md">
+                    Destaque
                   </div>
                 </motion.div>
                 
                 <motion.div variants={itemVariants} className="flex flex-col justify-center">
                   <h3 className="font-heading text-4xl font-bold text-white mb-4">{menu.title}</h3>
-                  <p className="text-on-surface-variant text-lg mb-8">{menu.description}</p>
+                  <p className="text-zinc-400 text-lg mb-8 leading-relaxed">{menu.description}</p>
                   
                   <div className="mb-8">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-3">Tamanho</p>
-                    <div className="flex gap-3">
+                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-3 tracking-widest">Escolha o Tamanho</p>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                       {(['p', 'm', 'g'] as const).map(size => (
-                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-3 px-6 rounded-2xl font-bold border", selectedSize === size ? "bg-primary text-white border-primary" : "bg-zinc-900 text-zinc-500 border-white/5")}>
+                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-4 px-6 rounded-2xl font-bold border whitespace-nowrap transition-all", selectedSize === size ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" : "bg-zinc-900 text-zinc-500 border-white/5 hover:bg-zinc-800")}>
                           {size.toUpperCase()} • {formatBRL(menu.prices[size])}
                         </button>
                       ))}
                     </div>
                   </div>
                   
-                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl", menu.isOpen ? "bg-primary text-white" : "bg-zinc-800 text-zinc-600")}>
+                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl transition-transform active:scale-95", menu.isOpen ? "bg-primary text-white hover:brightness-110" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>
                     ADICIONAR AO PEDIDO
                   </button>
                 </motion.div>
@@ -303,19 +310,22 @@ export default function ClientHome() {
               {/* COMPLEMENTOS / ADICIONAIS */}
               {menu.meats?.length > 0 && (
                 <section className="px-container mt-16">
-                  <h4 className="font-heading text-2xl font-bold text-white mb-6">{menu.meatsTitle || 'Complementos'}</h4>
+                  <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                    <MeatsIcon className="text-primary w-7 h-7" />
+                    {menu.sectionMeatsTitle || 'Adicionais'}
+                  </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {menu.meats.map((meat: any) => (
-                      <div key={meat.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/5">
+                      <div key={meat.id} className="bg-zinc-900/50 p-5 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
                         <div>
-                          <p className="font-bold text-white">{meat.name}</p>
+                          <p className="font-bold text-white group-hover:text-primary transition-colors">{meat.name}</p>
                           {meat.price > 0 ? (
                             <p className="text-secondary font-bold text-sm">+ {formatBRL(meat.price)}</p>
                           ) : (
-                            <p className="text-zinc-500 text-xs">Incluso / Grátis</p>
+                            <p className="text-zinc-500 text-xs font-mono">Sem custo</p>
                           )}
                         </div>
-                        <button onClick={() => handleAddComplement(meat)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center">
+                        <button onClick={() => handleAddComplement(meat)} disabled={!menu.isOpen} className="w-12 h-12 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0">
                           <Plus />
                         </button>
                       </div>
@@ -324,17 +334,29 @@ export default function ClientHome() {
                 </section>
               )}
 
-              {/* BEBIDAS */}
+              {/* BEBIDAS E EXTRAS */}
               <section className="px-container mt-16 pb-20">
-                <h4 className="font-heading text-2xl font-bold text-white mb-6">Bebidas e Extras</h4>
+                <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                  <DrinksIcon className="text-primary w-7 h-7" />
+                  {menu.sectionDrinksTitle || 'Bebidas e Extras'}
+                </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {menu.drinks?.map((drink: any) => (
-                    <div key={drink.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border border-white/5">
-                      <div>
-                        <p className="font-bold text-white">{drink.name}</p>
-                        <p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p>
+                    <div key={drink.id} className="bg-zinc-900/50 p-4 rounded-2xl flex items-center justify-between border border-white/5 hover:border-primary/30 transition-colors group">
+                      <div className="flex items-center gap-4">
+                        {drink.image ? (
+                           <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover shadow-lg" />
+                        ) : (
+                           <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center">
+                             <DrinksIcon className="w-6 h-6 text-zinc-600" />
+                           </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-white group-hover:text-primary transition-colors">{drink.name}</p>
+                          <p className="text-secondary font-bold text-sm">{formatBRL(drink.price)}</p>
+                        </div>
                       </div>
-                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-surface-container text-primary flex items-center justify-center">
+                      <button onClick={() => handleAddDrink(drink)} disabled={!menu.isOpen} className="w-10 h-10 rounded-xl bg-white/5 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 shrink-0">
                         <Plus />
                       </button>
                     </div>
@@ -363,34 +385,34 @@ export default function ClientHome() {
             onClick={() => {
               if (!isProfileComplete && !isSuperAdmin) {
                 setActiveTab('profile');
-                return toast.error("Por favor, complete seu perfil para prosseguir para o checkout.");
+                return toast.error("Por favor, complete seu perfil para prosseguir.");
               }
               navigate('/checkout');
             }} 
-            className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl"
+            className="w-full md:max-w-md bg-primary text-white py-4 rounded-2xl font-heading font-black flex justify-between items-center px-8 shadow-2xl shadow-primary/30 hover:scale-105 transition-transform"
           >
-            <span>CARRINHO ({items.length})</span>
+            <span className="flex items-center gap-2"><ShoppingCart className="w-5 h-5"/> CARRINHO ({items.length})</span>
             <span className="text-xl">{formatBRL(total)}</span>
           </button>
         </div>
       )}
 
       {/* BARRA MOBILE */}
-      <nav className="md:hidden bg-zinc-950 fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
+      <nav className="md:hidden bg-zinc-950/90 backdrop-blur-xl fixed bottom-0 w-full h-20 border-t border-white/5 flex justify-around items-center z-50">
         <button 
           onClick={() => setActiveTab('menu')} 
           className={activeTab === 'menu' ? "text-primary" : "text-zinc-500"}
         >
-          <Utensils/><span className="text-[10px] block font-bold">Cardápio</span>
+          <Utensils className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Cardápio</span>
         </button>
         <button 
           onClick={() => setActiveTab('orders')} 
           className={activeTab === 'orders' ? "text-primary" : "text-zinc-500"}
         >
-          <Receipt/><span className="text-[10px] block font-bold">Pedidos</span>
+          <Receipt className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Pedidos</span>
         </button>
         <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}>
-          <User/><span className="text-[10px] block font-bold">Perfil</span>
+          <User className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Perfil</span>
         </button>
       </nav>
 

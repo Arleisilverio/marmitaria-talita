@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL, cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode, BarChart } from 'lucide-react';
+import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image as ImageIcon, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode, BarChart, Pizza, Flame, Leaf, Star } from 'lucide-react';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,14 +12,29 @@ import { QRCodeSVG } from 'qrcode.react';
 interface Drink { id: string; name: string; price: number; is_available?: boolean; image?: string; }
 interface Meat { id: string; name: string; price?: number; }
 interface Slide { id: string; image: string; title: string; description: string; }
-interface MenuData { title: string; description: string; image: string; prices: { p: number; m: number; g: number }; meatsTitle?: string; meats: Meat[]; drinks: Drink[]; slides: Slide[]; isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; }
+interface MenuData { 
+  title: string; description: string; image: string; prices: { p: number; m: number; g: number }; 
+  sectionMainTitle?: string; sectionMainIcon?: string;
+  sectionMeatsTitle?: string; sectionMeatsIcon?: string;
+  sectionDrinksTitle?: string; sectionDrinksIcon?: string;
+  meats: Meat[]; drinks: Drink[]; slides: Slide[]; 
+  isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; 
+}
+
+const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
+type IconKey = keyof typeof AVAILABLE_ICONS;
 
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
   <AnimatePresence>{isOpen && (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-900 border border-white/10 rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-6"><h3 className="text-white font-bold text-xl">{title}</h3><button onClick={onClose} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button></div>
-        {children}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-5 md:p-6 border-b border-white/5 shrink-0 bg-zinc-950/50">
+          <h3 className="text-white font-bold text-lg md:text-xl">{title}</h3>
+          <button onClick={onClose} className="w-8 h-8 md:w-10 md:h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"><X className="w-4 h-4 md:w-5 md:h-5" /></button>
+        </div>
+        <div className="p-5 md:p-6 overflow-y-auto">
+          {children}
+        </div>
       </motion.div>
     </motion.div>
   )}</AnimatePresence>
@@ -45,7 +60,7 @@ const ImageUploader = ({ value, onChange, label }: { value: string; onChange: (v
         </div>
       ) : (
         <div onClick={() => inputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
-          <Upload className="w-8 h-8 text-zinc-600 mb-2" /><span className="text-zinc-500 text-xs">Clique para escolher do celular ou computador</span>
+          <Upload className="w-8 h-8 text-zinc-600 mb-2" /><span className="text-zinc-500 text-xs mt-2">Toque para escolher do celular ou PC</span>
         </div>
       )}
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
@@ -53,38 +68,45 @@ const ImageUploader = ({ value, onChange, label }: { value: string; onChange: (v
   );
 };
 
-// Componente para Título Editável
-const EditableTitle = ({ initialTitle, onSave, icon: Icon }: { initialTitle: string, onSave: (val: string) => void, icon: any }) => {
-  const [title, setTitle] = useState(initialTitle);
+const EditableSectionHeader = ({
+  title, iconKey, defaultTitle, defaultIcon, onSave
+}: {
+  title?: string; iconKey?: string; defaultTitle: string; defaultIcon: IconKey; onSave: (t: string, i: string) => void;
+}) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(title || defaultTitle);
+  const [editIcon, setEditIcon] = useState<string>(iconKey || defaultIcon);
 
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (title.trim() !== initialTitle) {
-      onSave(title.trim() || 'Complementos');
-    }
-  };
+  const Icon = AVAILABLE_ICONS[(iconKey || defaultIcon) as IconKey] || AVAILABLE_ICONS[defaultIcon];
+  const SelectedIcon = AVAILABLE_ICONS[editIcon as IconKey] || AVAILABLE_ICONS[defaultIcon];
+
+  if (isEditing) {
+    return (
+      <div className="mb-6 p-4 bg-black/40 rounded-2xl border border-white/10 space-y-4">
+        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Personalizar Seção</label>
+        <div className="flex gap-3 items-center">
+          <div className="relative shrink-0">
+            <select value={editIcon} onChange={(e) => setEditIcon(e.target.value)} className="appearance-none bg-zinc-800 border border-white/10 text-white p-3 rounded-xl pl-10 outline-none focus:border-primary w-16">
+              {Object.keys(AVAILABLE_ICONS).map(k => <option key={k} value={k}></option>)}
+            </select>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"><SelectedIcon className="w-5 h-5 text-primary" /></div>
+            <ChevronDown className="w-3 h-3 text-zinc-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          <input autoFocus type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="flex-1 bg-zinc-800 border border-white/10 p-3 rounded-xl text-white outline-none focus:border-primary text-sm" placeholder="Título. Ex: Nossos Sabores" />
+        </div>
+        <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+          <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors">Cancelar</button>
+          <button onClick={() => { onSave(editTitle, editIcon); setIsEditing(false); }} className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold transition-transform active:scale-95">Salvar</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-2 mb-6">
+    <div className="flex items-center gap-3 mb-6 cursor-pointer group w-fit hover:bg-white/5 p-2 -ml-2 rounded-xl transition-colors" onClick={() => setIsEditing(true)}>
       <Icon className="text-primary w-6 h-6 flex-shrink-0" />
-      {isEditing ? (
-        <input
-          autoFocus
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
-          className="bg-transparent border-b border-primary text-white font-bold text-xl outline-none px-1 py-0 w-full max-w-xs"
-          placeholder="Nome da Categoria"
-        />
-      ) : (
-        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsEditing(true)}>
-          <h2 className="text-white font-bold text-xl">{title}</h2>
-          <Edit2 className="w-4 h-4 text-zinc-600 group-hover:text-primary transition-colors" />
-        </div>
-      )}
+      <h2 className="text-white font-bold text-xl transition-colors group-hover:text-primary">{title || defaultTitle}</h2>
+      <Edit2 className="w-4 h-4 text-zinc-600 group-hover:text-primary transition-colors ml-1 opacity-50 group-hover:opacity-100" />
     </div>
   );
 };
@@ -98,7 +120,7 @@ const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: D
       <ImageUploader value={image} onChange={setImage} label="Foto da Bebida (opcional)" />
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome da Bebida</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Refrigerante Guaraná" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Preço (R$)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="5.90" /></div>
-      <div className="flex gap-3 pt-4">
+      <div className="flex gap-3 pt-4 border-t border-white/5">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: drink?.id || Date.now().toString(), name: name.trim(), price: parseFloat(price) || 0, image }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{drink ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -111,9 +133,9 @@ const MeatEditor = ({ meat, onSave, onCancel }: { meat?: Meat; onSave: (m: Meat)
   const [price, setPrice] = useState(meat?.price?.toString() || '');
   return (
     <div className="space-y-4">
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Complemento</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango, Morango, Molho..." /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Item</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango, Morango, Molho..." /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Valor Adicional (R$ - Opcional)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="0.00 (Deixe em branco se for grátis)" /></div>
-      <div className="flex gap-3 pt-4">
+      <div className="flex gap-3 pt-4 border-t border-white/5">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim(), price: parseFloat(price) || 0 }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -130,7 +152,7 @@ const SlideEditor = ({ slide, onSave, onCancel }: { slide?: Slide; onSave: (s: S
       <ImageUploader value={image} onChange={setImage} label="Imagem do Slide" />
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Marmita do Dia" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} placeholder="Ex: Especial de hoje" /></div>
-      <div className="flex gap-3 pt-4">
+      <div className="flex gap-3 pt-4 border-t border-white/5">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => onSave({ id: slide?.id || Date.now().toString(), image, title, description })} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{slide ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -155,7 +177,7 @@ const MainDishEditor = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData
           ))}
         </div>
       </div>
-      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Produto Principal</>}</button>
+      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Configurações Acima</>}</button>
     </div>
   );
 };
@@ -199,9 +221,9 @@ const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Dr
   return (
     <>
       <div className="space-y-4">
-        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum item extra cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione refrigerantes, sucos, sobremesas...</p></div> : drinks.map(drink => (
+        {drinks.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Coffee className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum item cadastrado</p></div> : drinks.map(drink => (
           <div key={drink.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center gap-4">
-            {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-zinc-900 flex items-center justify-center"><Coffee className="w-6 h-6 text-zinc-700" /></div>}
+            {drink.image ? <img src={drink.image} alt={drink.name} className="w-14 h-14 rounded-xl object-cover" /> : <div className="w-14 h-14 rounded-xl bg-zinc-900 flex items-center justify-center"><ImageIcon className="w-6 h-6 text-zinc-700" /></div>}
             <div className="flex-1"><p className="text-white font-bold">{drink.name}</p><p className="text-primary font-bold text-sm">{formatBRL(drink.price)}</p></div>
             <div className={cn("w-2 h-2 rounded-full", drink.is_available !== false ? "bg-green-500" : "bg-red-500")} />
             <div className="flex items-center gap-1">
@@ -211,7 +233,7 @@ const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Dr
             </div>
           </div>
         ))}
-        <button onClick={() => { setEditingDrink(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Extra/Bebida</button>
+        <button onClick={() => { setEditingDrink(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Item com Imagem</button>
       </div>
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingDrink ? "Editar Item" : "Novo Item"}><DrinkEditor drink={editingDrink} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
     </>
@@ -225,11 +247,10 @@ const MeatsManager = ({ meats, onUpdate }: { meats: Meat[]; onUpdate: (m: Meat[]
   return (
     <>
       <div className="space-y-3">
-        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum complemento cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione acompanhamentos, adicionais...</p></div> : meats.map((meat) => (
+        {meats.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Beef className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum item cadastrado</p></div> : meats.map((meat) => (
           <div key={meat.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <GripVertical className="w-4 h-4 text-zinc-600" />
-              <Beef className="w-5 h-5 text-primary/50" />
               <div>
                 <span className="text-white font-bold block">{meat.name}</span>
                 {meat.price ? <span className="text-primary text-xs font-bold">+ {formatBRL(meat.price)}</span> : <span className="text-zinc-500 text-xs">Sem custo adicional</span>}
@@ -237,13 +258,13 @@ const MeatsManager = ({ meats, onUpdate }: { meats: Meat[]; onUpdate: (m: Meat[]
             </div>
             <div className="flex items-center gap-1">
               <button onClick={() => { setEditingMeat(meat); setShowModal(true); }} className="p-2 hover:bg-white/5 rounded-lg text-primary"><Edit2 className="w-4 h-4" /></button>
-              <button onClick={() => { if (confirm('Remover este complemento?')) onUpdate(meats.filter(m => m.id !== meat.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
+              <button onClick={() => { if (confirm('Remover este item?')) onUpdate(meats.filter(m => m.id !== meat.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         ))}
-        <button onClick={() => { setEditingMeat(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Complemento</button>
+        <button onClick={() => { setEditingMeat(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Adicional Simples</button>
       </div>
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingMeat ? "Editar Complemento" : "Novo Complemento"}><MeatEditor meat={editingMeat} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingMeat ? "Editar Adicional" : "Novo Adicional"}><MeatEditor meat={editingMeat} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
     </>
   );
 };
@@ -258,10 +279,10 @@ const SlidesManager = ({ slides, onUpdate }: { slides: Slide[]; onUpdate: (s: Sl
   return (
     <>
       <div className="space-y-4">
-        {slides.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Layers className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum slide cadastrado</p><p className="text-xs text-zinc-600 mt-1">Adicione imagens para o carrossel da loja</p></div> : slides.map((slide, idx) => (
+        {slides.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Layers className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum slide cadastrado</p></div> : slides.map((slide, idx) => (
           <div key={slide.id} className="bg-zinc-800/50 rounded-xl border border-white/5 overflow-hidden">
             <div className="flex">
-              <div className="w-28 h-20 bg-zinc-900 flex-shrink-0">{slide.image ? <img src={slide.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Image className="w-8 h-8 text-zinc-700" /></div>}</div>
+              <div className="w-28 h-20 bg-zinc-900 flex-shrink-0">{slide.image ? <img src={slide.image} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-8 h-8 text-zinc-700" /></div>}</div>
               <div className="flex-1 p-3 flex items-center"><div className="flex-1 min-w-0"><p className="text-white font-bold text-sm truncate">{slide.title || 'Sem título'}</p><p className="text-zinc-500 text-xs truncate">{slide.description || 'Sem descrição'}</p></div></div>
               <div className="flex flex-col border-l border-white/5"><button onClick={() => moveUp(idx)} className="p-2 hover:bg-white/5 text-zinc-500 hover:text-white flex-1"><ChevronUp className="w-4 h-4" /></button><button onClick={() => moveDown(idx)} className="p-2 hover:bg-white/5 text-zinc-500 hover:text-white flex-1"><ChevronDown className="w-4 h-4" /></button></div>
               <div className="flex flex-col border-l border-white/5"><button onClick={() => { setEditingSlide(slide); setShowModal(true); }} className="p-2 hover:bg-white/5 text-primary flex-1"><Edit2 className="w-4 h-4" /></button><button onClick={() => handleDelete(slide.id)} className="p-2 hover:bg-white/5 text-red-500 flex-1"><Trash2 className="w-4 h-4" /></button></div>
@@ -391,13 +412,8 @@ const ShareLinks = ({ storeSlug, storeName }: { storeSlug: string; storeName: st
           </div>
           <div className="bg-zinc-800/50 p-5 rounded-2xl border border-white/5">
             <div className="flex items-center gap-2 mb-3"><Link2 className="w-5 h-5 text-primary" /><h4 className="text-white font-bold">Link da Sua Loja</h4></div>
-            <p className="text-zinc-500 text-xs mb-4">Compartilhe este link para que seus clientes acessem diretamente sua loja.</p>
+            <p className="text-zinc-500 text-xs mb-4">Compartilhe este link para os clientes acessarem sua loja.</p>
             <div className="flex items-center gap-2"><input type="text" readOnly value={storeUrl} className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate" /><button onClick={() => copyToClipboard(storeUrl, 'Link da loja')} className="bg-primary p-3 rounded-xl text-white hover:bg-primary/80 transition-colors" title="Copiar link"><Copy className="w-5 h-5" /></button><a href={storeUrl} target="_blank" rel="noopener noreferrer" className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors" title="Abrir link"><ExternalLink className="w-5 h-5" /></a></div>
-          </div>
-          <div className="bg-zinc-800/50 p-5 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-2 mb-3"><Share2 className="w-5 h-5 text-secondary" /><h4 className="text-white font-bold">Link do Site (Vitrine)</h4></div>
-            <p className="text-zinc-500 text-xs mb-4">Link da vitrine com todas as lojas. Use para mostrar o aplicativo.</p>
-            <div className="flex items-center gap-2"><input type="text" readOnly value={siteUrl} className="flex-1 bg-black/40 border border-white/10 p-3 rounded-xl text-white text-sm truncate" /><button onClick={() => copyToClipboard(siteUrl, 'Link do site')} className="bg-secondary p-3 rounded-xl text-white hover:bg-secondary/80 transition-colors" title="Copiar link"><Copy className="w-5 h-5" /></button><a href={siteUrl} target="_blank" rel="noopener noreferrer" className="bg-white/10 p-3 rounded-xl text-white hover:bg-white/20 transition-colors" title="Abrir link"><ExternalLink className="w-5 h-5" /></a></div>
           </div>
         </div>
       </Modal>
@@ -474,7 +490,12 @@ export default function AdminDashboard() {
         description: menuData?.description || '', 
         image: menuData?.image || '', 
         prices: menuData?.prices || { p: 0, m: 0, g: 0 }, 
-        meatsTitle: menuData?.meatsTitle || 'Carnes / Complementos',
+        sectionMainTitle: menuData?.sectionMainTitle || 'Produto Principal',
+        sectionMainIcon: menuData?.sectionMainIcon || 'Utensils',
+        sectionMeatsTitle: menuData?.sectionMeatsTitle || 'Adicionais / Complementos',
+        sectionMeatsIcon: menuData?.sectionMeatsIcon || 'Beef',
+        sectionDrinksTitle: menuData?.sectionDrinksTitle || 'Bebidas / Extras',
+        sectionDrinksIcon: menuData?.sectionDrinksIcon || 'Coffee',
         meats: menuData?.meats || [], 
         drinks: menuData?.drinks || [], 
         slides: menuData?.slides || [], 
@@ -529,16 +550,30 @@ export default function AdminDashboard() {
           )}
           {activeTab === 'menu' && (
             <motion.div key="menu" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Utensils className="text-primary w-6 h-6" /> Produto Principal</h2><MainDishEditor menu={menu} onSave={handleSavePart} /></div>
               <div className="glass-card p-6 rounded-3xl border border-white/5">
-                <EditableTitle 
-                  initialTitle={menu.meatsTitle || 'Carnes / Complementos'} 
-                  icon={Beef} 
-                  onSave={(newTitle) => handleSavePart({ ...menu, meatsTitle: newTitle })} 
+                <EditableSectionHeader 
+                  title={menu.sectionMainTitle} iconKey={menu.sectionMainIcon} 
+                  defaultTitle="Produto Principal" defaultIcon="Utensils" 
+                  onSave={(t, i) => handleSavePart({ ...menu, sectionMainTitle: t, sectionMainIcon: i })} 
+                />
+                <MainDishEditor menu={menu} onSave={handleSavePart} />
+              </div>
+              <div className="glass-card p-6 rounded-3xl border border-white/5">
+                <EditableSectionHeader 
+                  title={menu.sectionMeatsTitle} iconKey={menu.sectionMeatsIcon} 
+                  defaultTitle="Complementos" defaultIcon="Beef" 
+                  onSave={(t, i) => handleSavePart({ ...menu, sectionMeatsTitle: t, sectionMeatsIcon: i })} 
                 />
                 <MeatsManager meats={menu.meats} onUpdate={meats => handleSavePart({ ...menu, meats })} />
               </div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Coffee className="text-primary w-6 h-6" /> Bebidas / Extras</h2><DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} /></div>
+              <div className="glass-card p-6 rounded-3xl border border-white/5">
+                <EditableSectionHeader 
+                  title={menu.sectionDrinksTitle} iconKey={menu.sectionDrinksIcon} 
+                  defaultTitle="Bebidas / Extras" defaultIcon="Coffee" 
+                  onSave={(t, i) => handleSavePart({ ...menu, sectionDrinksTitle: t, sectionDrinksIcon: i })} 
+                />
+                <DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} />
+              </div>
               <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Layers className="text-primary w-6 h-6" /> Slides do Carrossel</h2><SlidesManager slides={menu.slides} onUpdate={slides => handleSavePart({ ...menu, slides })} /></div>
             </motion.div>
           )}
