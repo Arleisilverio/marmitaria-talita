@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL, cn } from '../lib/utils';
@@ -28,22 +29,30 @@ interface MenuData {
 const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
 type IconKey = keyof typeof AVAILABLE_ICONS;
 
-const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
-  <AnimatePresence>{isOpen && (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-5 md:p-6 border-b border-white/5 shrink-0 bg-zinc-950/50">
-          <h3 className="text-white font-bold text-lg md:text-xl">{title}</h3>
-          <button onClick={onClose} className="w-8 h-8 md:w-10 md:h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"><X className="w-4 h-4 md:w-5 md:h-5" /></button>
-        </div>
-        {/* Adicionado flex-1 min-h-0 para garantir que o scroll interno funcione corretamente */}
-        <div className="p-5 md:p-6 overflow-y-auto flex-1 min-h-0">
-          {children}
-        </div>
-      </motion.div>
-    </motion.div>
-  )}</AnimatePresence>
-);
+// CORREÇÃO APLICADA: createPortal joga o modal diretamente na raiz do HTML (document.body)
+// Isso impede que qualquer outro container (como o de slides) fique por cima dele.
+const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
+  if (typeof document === 'undefined') return null;
+  
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+          <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-5 md:p-6 border-b border-white/5 shrink-0 bg-zinc-950/50">
+              <h3 className="text-white font-bold text-lg md:text-xl">{title}</h3>
+              <button onClick={onClose} className="w-8 h-8 md:w-10 md:h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"><X className="w-4 h-4 md:w-5 md:h-5" /></button>
+            </div>
+            <div className="p-5 md:p-6 overflow-y-auto flex-1 min-h-0">
+              {children}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
 
 const ImageUploader = ({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) => {
   const inputRef = useRef<HTMLInputElement>(null);
