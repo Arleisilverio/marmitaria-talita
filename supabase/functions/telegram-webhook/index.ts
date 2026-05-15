@@ -104,9 +104,6 @@ serve(async (req) => {
       return new Response('ok')
     }
 
-    // =========================================================================
-    // NOVO: SISTEMA DE INTELIGÊNCIA DE PRAZO E STATUS DO PEDIDO
-    // =========================================================================
     const { data: lastOrder } = await supabase
       .from('orders')
       .select('*')
@@ -123,7 +120,6 @@ serve(async (req) => {
     if (lastOrder && (lastOrder.status === 'pendente' || lastOrder.status === 'confirmado')) {
       activeOrder = lastOrder;
       
-      // Cálculo do tempo
       const orderTime = new Date(lastOrder.created_at).getTime();
       const now = Date.now();
       const elapsedMinutes = Math.floor((now - orderTime) / 60000);
@@ -136,13 +132,12 @@ serve(async (req) => {
       ATENÇÃO! O cliente tem um PEDIDO EM ANDAMENTO (ID: ${lastOrder.id}):
       - Status na cozinha: ${lastOrder.status}
       - Tempo decorrido desde o pedido: ${elapsedMinutes} minutos
-      - Prazo da loja configurado pelo dono: ${prepMin} a ${prepMax} minutos
-      - Situação atual: ${timeLeft > 0 ? `Ainda dentro do prazo (faltam ${timeLeft} minutos para estourar).` : `ESTOUROU O PRAZO EM ${Math.abs(timeLeft)} MINUTOS.`}
+      - Prazo da loja: ${prepMin} a ${prepMax} minutos
+      - Situação: ${timeLeft > 0 ? `Ainda no prazo (faltam ${timeLeft}m).` : `ATRASADO EM ${Math.abs(timeLeft)} MINUTOS.`}
 
-      INSTRUÇÕES ESPECÍFICAS SE O CLIENTE PERGUNTAR DA DEMORA OU STATUS:
-      1. Calcule e informe o tempo decorrido e a previsão de forma amigável.
-      2. Se estiver DENTRO do prazo, tranquilize o cliente dizendo que falta pouco.
-      3. Se já ESTOUROU O PRAZO (Tempo decorrido > Prazo Máximo), peça desculpas sinceras e OBRIGATORIAMENTE use a função 'alert_store_delay' para notificar a cozinha e o gerente no painel imediatamente.
+      INSTRUÇÕES DE STATUS:
+      1. Informe o tempo decorrido amigavelmente se perguntado.
+      2. Se estourou o prazo, peça desculpas e OBRIGATORIAMENTE use a função 'alert_store_delay'.
       `;
     }
 
@@ -152,12 +147,8 @@ serve(async (req) => {
     const systemPrompt = `
       ${aiPersona}
       
-      Você está falando com o cliente: ${userProfile.full_name}.
-      Telefone: ${userProfile.phone}
-      Endereço cadastrado: ${userProfile.address}
-      
-      A loja é: ${menuData.title}
-      Status: ${menuData.isOpen ? 'ABERTA' : 'FECHADA'}
+      Cliente: ${userProfile.full_name} | Tel: ${userProfile.phone} | Endereço: ${userProfile.address}
+      Loja: ${menuData.title} | Status: ${menuData.isOpen ? 'ABERTA' : 'FECHADA'}
 
       ${orderContext}
       
@@ -167,11 +158,12 @@ serve(async (req) => {
       - Bebidas: ${menuData.drinks?.map(d => `${d.name} (R$${d.price})`).join(', ') || 'Nenhuma'}
       - Taxa de Entrega: R$${menuData.deliveryFee || 0}
       
-      REGRAS GERAIS:
-      1. Se o cliente quiser fechar o pedido, confirme TODOS os itens escolhidos e a forma de pagamento (Pix, Dinheiro, Cartão).
-      2. Confirme se será Entrega no endereço cadastrado (${userProfile.address}) ou Retirada.
-      3. APENAS quando o cliente confirmar tudo, VOCÊ DEVE OBRIGATORIAMENTE chamar a função 'register_order'.
-      4. Mantenha respostas curtas e objetivas.
+      ⚠️ REGRAS RESTRITAS E LIMITES DE CONVERSA (MUITO IMPORTANTE):
+      1. VOCÊ É EXCLUSIVAMENTE UM GARÇOM. É ESTRITAMENTE PROIBIDO conversar sobre política, religião, programação, conhecimentos gerais, contar piadas ou discutir qualquer assunto fora do contexto do restaurante/cardápio.
+      2. Se o cliente tentar sair do assunto, responder algo ofensivo ou fazer perguntas genéricas, responda APENAS E EXATAMENTE: "Desculpe, sou apenas o garçom virtual da loja. Posso te ajudar a escolher algo do nosso cardápio ou verificar seu pedido?" e não desenvolva o assunto.
+      3. Seja SEMPRE extremamente CURTO, DIRETO e OBJETIVO. Use no máximo 2 a 3 frases por resposta para economizar tempo do cliente (e tokens).
+      4. Se o cliente quiser fechar o pedido, confirme TODOS os itens, a forma de pagamento (Pix, Dinheiro, Cartão) e se é Entrega ou Retirada.
+      5. APENAS quando o cliente confirmar tudo, CHAME a função 'register_order'.
     `;
 
     const tools = [
@@ -218,7 +210,7 @@ serve(async (req) => {
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools, temperature: 0.7 }),
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools, temperature: 0.3 }), // Diminui a temperatura para ficar menos "criativo/falador"
       });
 
       if (!aiResponse.ok) {
@@ -234,7 +226,6 @@ serve(async (req) => {
       if (responseMessage.tool_calls) {
         for (const toolCall of responseMessage.tool_calls) {
           
-          // Função: Registrar Pedido
           if (toolCall.function.name === 'register_order') {
             const args = JSON.parse(toolCall.function.arguments);
             const address = args.delivery_type === 'retirada' ? 'RETIRADA' : userProfile.address;
@@ -256,15 +247,13 @@ serve(async (req) => {
 
             const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.7 }),
+              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3 }),
             });
             replyText = (await secondResponse.json()).choices[0].message.content;
           }
           
-          // Função: Alerta de Atraso
           else if (toolCall.function.name === 'alert_store_delay') {
             if (activeOrder && !activeOrder.customer_name.includes('⚠️')) {
-              // Modifica o nome do cliente no banco para fazer o painel piscar em vermelho
               await supabase.from('orders').update({
                 customer_name: `⚠️ ATRASADO - ${activeOrder.customer_name}`
               }).eq('id', activeOrder.id);
@@ -275,7 +264,7 @@ serve(async (req) => {
 
             const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.7 }),
+              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3 }),
             });
             replyText = (await secondResponse.json()).choices[0].message.content;
           }
@@ -286,7 +275,7 @@ serve(async (req) => {
 
       await sendTelegramMessage(replyText);
 
-      const newHistory = [...chatHistory, { role: 'user', content: aiPromptText }, { role: 'assistant', content: replyText }].slice(-10);
+      const newHistory = [...chatHistory, { role: 'user', content: aiPromptText }, { role: 'assistant', content: replyText }].slice(-6); // Reduzi de -10 para -6 para economizar tokens lidos na memória
       await supabase.from('telegram_sessions').update({ history: newHistory }).eq('chat_id', chatId);
       
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
