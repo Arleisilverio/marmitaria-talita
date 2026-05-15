@@ -10,7 +10,6 @@ import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
 import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send, X, Copy } from 'lucide-react';
-import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
 
@@ -318,8 +317,6 @@ export default function ClientHome() {
         <button onClick={() => setActiveTab('orders')} className={activeTab === 'orders' ? "text-primary" : "text-zinc-500"}><Receipt className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Pedidos</span></button>
         <button onClick={() => setActiveTab('profile')} className={cn(activeTab === 'profile' ? "text-primary" : "text-zinc-500")}><User className="mx-auto mb-1 w-5 h-5"/><span className="text-[10px] block font-bold tracking-widest uppercase">Perfil</span></button>
       </nav>
-
-      <AIChat menuContext={menu} storeName={menu.title} />
 
       {isStoreAdmin && (
         <motion.button initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} onClick={() => navigate(isSuperAdmin ? '/super-admin' : '/admin')} className="fixed top-24 right-4 z-[60] bg-primary text-white p-3 md:p-4 rounded-2xl shadow-2xl flex items-center gap-2 border border-white/20 hover:scale-105 active:scale-95 transition-all md:top-8 md:right-8"><ShieldAlert size={20}/><span className="font-bold text-[10px] md:text-xs uppercase tracking-widest hidden sm:block">Voltar ao Painel</span></motion.button>
