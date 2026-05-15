@@ -31,12 +31,13 @@ type IconKey = keyof typeof AVAILABLE_ICONS;
 const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => (
   <AnimatePresence>{isOpen && (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-zinc-900 border border-white/10 rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center p-5 md:p-6 border-b border-white/5 shrink-0 bg-zinc-950/50">
           <h3 className="text-white font-bold text-lg md:text-xl">{title}</h3>
           <button onClick={onClose} className="w-8 h-8 md:w-10 md:h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"><X className="w-4 h-4 md:w-5 md:h-5" /></button>
         </div>
-        <div className="p-5 md:p-6 overflow-y-auto">
+        {/* Adicionado flex-1 min-h-0 para garantir que o scroll interno funcione corretamente */}
+        <div className="p-5 md:p-6 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
       </motion.div>
@@ -115,17 +116,16 @@ const EditableSectionHeader = ({
   );
 };
 
-// ... DrinkEditor, MeatEditor, SlideEditor, MainDishEditor (Mantidos iguais ao original)
 const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: Drink) => void; onCancel: () => void }) => {
   const [name, setName] = useState(drink?.name || '');
   const [price, setPrice] = useState(drink?.price?.toString() || '');
   const [image, setImage] = useState(drink?.image || '');
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <ImageUploader value={image} onChange={setImage} label="Foto da Bebida (opcional)" />
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome da Bebida</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Refrigerante Guaraná" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Preço (R$)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="5.90" /></div>
-      <div className="flex gap-3 pt-4 border-t border-white/5">
+      <div className="flex gap-3 pt-4 border-t border-white/5 mt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: drink?.id || Date.now().toString(), name: name.trim(), price: parseFloat(price) || 0, image }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{drink ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -137,10 +137,10 @@ const MeatEditor = ({ meat, onSave, onCancel }: { meat?: Meat; onSave: (m: Meat)
   const [name, setName] = useState(meat?.name || '');
   const [price, setPrice] = useState(meat?.price?.toString() || '');
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Item</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Frango, Morango, Molho..." /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Valor Adicional (R$ - Opcional)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="0.00 (Deixe em branco se for grátis)" /></div>
-      <div className="flex gap-3 pt-4 border-t border-white/5">
+      <div className="flex gap-3 pt-4 border-t border-white/5 mt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: meat?.id || Date.now().toString(), name: name.trim(), price: parseFloat(price) || 0 }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{meat ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -153,11 +153,11 @@ const SlideEditor = ({ slide, onSave, onCancel }: { slide?: Slide; onSave: (s: S
   const [title, setTitle] = useState(slide?.title || '');
   const [description, setDescription] = useState(slide?.description || '');
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-4">
       <ImageUploader value={image} onChange={setImage} label="Imagem do Slide" />
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Promoção do Dia" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} placeholder="Ex: Especial de hoje" /></div>
-      <div className="flex gap-3 pt-4 border-t border-white/5">
+      <div className="flex gap-3 pt-4 border-t border-white/5 mt-4">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
         <button onClick={() => onSave({ id: slide?.id || Date.now().toString(), image, title, description })} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{slide ? 'Salvar' : 'Adicionar'}</button>
       </div>
@@ -219,9 +219,6 @@ const GeneralSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuDat
   );
 };
 
-// ======================================================
-// NOVO COMPONENTE: CONFIGURAÇÕES DA IA DO GARÇOM
-// ======================================================
 const AIAssistantSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData) => void }) => {
   const [localMenu, setLocalMenu] = useState<MenuData>({ ...menu });
   const [saving, setSaving] = useState(false);
@@ -299,7 +296,6 @@ const AIAssistantSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: Men
   );
 };
 
-// ... Restante do código: DrinksManager, MeatsManager, SlidesManager, ReportsView, ShareLinks, OrderCard
 const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Drink[]) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingDrink, setEditingDrink] = useState<Drink | undefined>();
