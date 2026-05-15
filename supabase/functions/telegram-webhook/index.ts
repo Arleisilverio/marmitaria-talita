@@ -14,11 +14,17 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
+    console.log("[telegram-webhook] Recebido payload do Telegram:", JSON.stringify(body))
+
     const message = body.message
-    if (!message || !message.text) return new Response('ok')
+    if (!message || !message.text) {
+      console.log("[telegram-webhook] Nenhuma mensagem de texto válida encontrada.")
+      return new Response('ok')
+    }
 
     const chatId = message.chat.id
     const userText = message.text
+    console.log(`[telegram-webhook] Processando mensagem de ${chatId}: ${userText}`)
     
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
@@ -26,7 +32,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
     if (!botToken || !openaiKey || !supabaseUrl || !supabaseKey) {
-      console.error("[telegram-webhook] Missing environment variables")
+      console.error("[telegram-webhook] ERRO: Variáveis de ambiente ausentes. Verifique o Supabase Secrets.")
       return new Response('Configuration error', { status: 500 })
     }
 
@@ -36,29 +42,39 @@ serve(async (req) => {
     let currentUserId = null;
     let chatHistory = [];
 
-    // LÓGICA DE DEEP LINK: Chegou pelo botão do App
-    if (userText.startsWith('/start ')) {
-      const payload = userText.split(' ')[1].trim(); 
-      // Formato esperado: "marmitaria-talita__123abc..."
-      const parts = payload.split('__');
-      currentStoreSlug = parts[0];
-      if (parts.length > 1) currentUserId = parts[1];
-      
-      await supabase.from('telegram_sessions').upsert({ 
-        chat_id: chatId, 
-        store_slug: currentStoreSlug, 
-        user_id: currentUserId,
-        history: [], // Limpa histórico ao iniciar nova conversa
-        updated_at: new Date().toISOString() 
-      });
-      
+    // LÓGICA DE DEEP LINK
+    if (userText.startsWith('/start')) {
+      const parts = userText.split(' ');
+      if (parts.length > 1) {
+        const payload = parts[1].trim(); 
+        const payloadParts = payload.split('__');
+        currentStoreSlug = payloadParts[0];
+        if (payloadParts.length > 1) currentUserId = payloadParts[1];
+        
+        console.log(`[telegram-webhook] Novo acesso via App. Loja: ${currentStoreSlug}, User: ${currentUserId}`);
+        
+        const { error: upsertError } = await supabase.from('telegram_sessions').upsert({ 
+          chat_id: chatId, 
+          store_slug: currentStoreSlug, 
+          user_id: currentUserId,
+          history: [], 
+          updated_at: new Date().toISOString() 
+        });
+
+        if (upsertError) {
+           console.error("[telegram-webhook] Erro ao salvar sessão no banco:", upsertError);
+        }
+      }
     } else {
       // Busca a sessão salva
-      const { data: session } = await supabase
+      console.log(`[telegram-webhook] Buscando sessão para o chat ${chatId}`);
+      const { data: session, error: sessionError } = await supabase
         .from('telegram_sessions')
         .select('*')
         .eq('chat_id', chatId)
-        .single();
+        .maybeSingle();
+        
+      if (sessionError) console.error("[telegram-webhook] Erro ao buscar sessão:", sessionError);
         
       if (session) {
         currentStoreSlug = session.store_slug;
@@ -69,6 +85,7 @@ serve(async (req) => {
 
     // SEGURANÇA: Se não tem ID, manda pro App
     if (!currentUserId || !currentStoreSlug) {
+      console.warn("[telegram-webhook] Acesso não autorizado ou sessão expirada. Mandando voltar pro app.");
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,13 +98,18 @@ serve(async (req) => {
     }
 
     // PUXAR DADOS DO CLIENTE E DA LOJA
-    const [{ data: userProfile }, { data: storeData }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', currentUserId).single(),
-      supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).single()
+    console.log(`[telegram-webhook] Puxando dados de perfil (${currentUserId}) e loja (${currentStoreSlug})`);
+    const [{ data: userProfile, error: profileErr }, { data: storeData, error: storeErr }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', currentUserId).maybeSingle(),
+      supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).maybeSingle()
     ]);
 
+    if (profileErr) console.error("[telegram-webhook] Erro ao buscar perfil:", profileErr);
+    if (storeErr) console.error("[telegram-webhook] Erro ao buscar loja:", storeErr);
+
     if (!storeData || !storeData.menu_data || !userProfile) {
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: "Ocorreu um erro ao carregar seus dados ou o cardápio." }) });
+      console.error("[telegram-webhook] Faltou dado. Loja ou Perfil não encontrado.");
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: "Ocorreu um erro ao carregar seus dados ou o cardápio. Tente novamente." }) });
       return new Response('ok')
     }
 
@@ -95,7 +117,6 @@ serve(async (req) => {
     const aiName = menuData.aiName || 'Garçom';
     const aiPersona = menuData.aiPersona || `Você é ${aiName}, um atendente educado.`;
     
-    // CONSTRUIR O CÉREBRO DA IA
     const systemPrompt = `
       ${aiPersona}
       
@@ -112,14 +133,13 @@ serve(async (req) => {
       - Bebidas: ${menuData.drinks?.map(d => `${d.name} (R$${d.price})`).join(', ') || 'Nenhuma'}
       - Taxa de Entrega: R$${menuData.deliveryFee || 0}
       
-      REGRAS ESTABELECIDAS:
+      REGRAS:
       1. Se o cliente quiser fechar o pedido, confirme TODOS os itens escolhidos e a forma de pagamento (Pix, Dinheiro, Cartão).
       2. Confirme se será Entrega no endereço cadastrado dele (${userProfile.address}) ou Retirada.
       3. APENAS quando o cliente confirmar tudo e disser que pode fechar, VOCÊ DEVE OBRIGATORIAMENTE chamar a função 'register_order'.
-      4. Mantenha as respostas curtas para leitura fácil no celular.
+      4. Mantenha respostas curtas.
     `;
 
-    // Função que a IA pode chamar
     const tools = [
       {
         type: "function",
@@ -152,31 +172,34 @@ serve(async (req) => {
       }
     ];
 
-    // Monta o array de mensagens
     const messages = [
       { role: 'system', content: systemPrompt },
       ...chatHistory,
       { role: 'user', content: userText }
     ];
 
-    // CHAMA A OPENAI
+    console.log(`[telegram-webhook] Chamando OpenAI para o chat ${chatId}`);
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools, temperature: 0.7 }),
     });
 
+    if (!aiResponse.ok) {
+      console.error(`[telegram-webhook] ERRO OpenAI API: ${aiResponse.status} ${aiResponse.statusText}`);
+      const errText = await aiResponse.text();
+      console.error("[telegram-webhook] Detalhes OpenAI:", errText);
+    }
+
     const aiData = await aiResponse.json();
     let responseMessage = aiData.choices[0].message;
     let replyText = responseMessage.content;
 
-    // SE A IA DECIDIR CHAMAR A FUNÇÃO DE CADASTRAR O PEDIDO
     if (responseMessage.tool_calls) {
+      console.log(`[telegram-webhook] IA decidiu registrar pedido! Chamando tool_calls...`);
       for (const toolCall of responseMessage.tool_calls) {
         if (toolCall.function.name === 'register_order') {
           const args = JSON.parse(toolCall.function.arguments);
-          
-          // SALVA NO BANCO (MÁGICA ACONTECENDO)
           const address = args.delivery_type === 'retirada' ? 'RETIRADA' : userProfile.address;
           
           const { error: orderError } = await supabase.from('orders').insert({
@@ -191,7 +214,8 @@ serve(async (req) => {
             store_slug: currentStoreSlug
           });
 
-          // Avisa a IA que deu certo para ela responder ao cliente
+          if (orderError) console.error("[telegram-webhook] Erro ao salvar pedido:", orderError);
+
           messages.push(responseMessage);
           messages.push({
             role: "tool",
@@ -199,7 +223,6 @@ serve(async (req) => {
             content: orderError ? "Erro ao salvar pedido." : "Pedido registrado com sucesso no painel da loja!"
           });
 
-          // Pede pra IA gerar o texto final
           const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
@@ -211,27 +234,27 @@ serve(async (req) => {
       }
     }
 
-    if (!replyText) replyText = "Desculpe, deu um erro aqui. Pode repetir?";
+    if (!replyText) replyText = "Desculpe, tive um problema de comunicação aqui. Pode repetir?";
 
-    // Envia resposta pro Telegram
+    console.log(`[telegram-webhook] Enviando resposta para ${chatId}`);
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: replyText, parse_mode: 'Markdown' })
     });
 
-    // Atualiza o histórico
     const newHistory = [
       ...chatHistory,
       { role: 'user', content: userText },
       { role: 'assistant', content: replyText }
-    ].slice(-10); // Guarda apenas as últimas 10 mensagens para não pesar
+    ].slice(-10);
 
     await supabase.from('telegram_sessions').update({ history: newHistory }).eq('chat_id', chatId);
-
+    
+    console.log(`[telegram-webhook] Processo finalizado com sucesso para ${chatId}`);
     return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
-    console.error("[telegram-webhook] Error:", error)
+    console.error("[telegram-webhook] ERRO CRÍTICO:", error)
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })
