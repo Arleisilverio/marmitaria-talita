@@ -49,11 +49,9 @@ serve(async (req) => {
     let currentUserId = null;
     let chatHistory = [];
 
-    // TENTATIVA DE RECEBER O CÓDIGO
+    // TENTATIVA DE RECEBER O CÓDIGO Deep Link
     if (userText.startsWith('/start')) {
       const parts = userText.split(' ');
-      
-      // O Telegram enviou o código corretamente junto com o /start!
       if (parts.length > 1) {
         const payload = parts.slice(1).join('').trim(); 
         const payloadParts = payload.split('__');
@@ -71,17 +69,12 @@ serve(async (req) => {
           updated_at: new Date().toISOString() 
         };
 
-        const { error: dbError } = existingSession 
-          ? await supabase.from('telegram_sessions').update(sessionData).eq('chat_id', chatId)
-          : await supabase.from('telegram_sessions').insert({ chat_id: chatId, ...sessionData });
-
-        if (dbError) {
-          await sendTelegramMessage(`⚠️ Erro interno ao salvar sessão no banco de dados: ${dbError.message}`);
-        }
+        await (existingSession 
+          ? supabase.from('telegram_sessions').update(sessionData).eq('chat_id', chatId)
+          : supabase.from('telegram_sessions').insert({ chat_id: chatId, ...sessionData }));
         
         aiPromptText = "Oi, acabei de chegar pelo aplicativo!";
       } else {
-        // O TELEGRAM ENGOLIU O CÓDIGO! Mandamos o aviso exato.
         await sendTelegramMessage("⚠️ *Aviso Importante*\n\nVocê enviou apenas o comando `/start` vazio e eu não consegui identificar sua conta.\n\nPor favor, volte ao aplicativo e copie o comando completo gerado na tela (Ex: `/start marmitaria...`) e cole aqui para mim!");
         return new Response('ok');
       }
@@ -95,13 +88,12 @@ serve(async (req) => {
       }
     }
 
-    // SEGURANÇA SE A SESSÃO FALHAR OU NÃO EXISTIR
     if (!currentUserId || !currentStoreSlug) {
       await sendTelegramMessage(`⚠️ *Erro de Autenticação*\n\nEu recebi sua mensagem: \`${userText}\`\n\nMas não consegui encontrar sua conta conectada. Por favor, volte ao aplicativo, clique no botão de IA e copie o comando que vai aparecer na tela.`);
       return new Response('ok')
     }
 
-    // PUXAR DADOS DO BANCO
+    // PUXAR DADOS DA LOJA E DO CLIENTE
     const [{ data: userProfile }, { data: storeData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', currentUserId).maybeSingle(),
       supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).maybeSingle()
@@ -112,7 +104,48 @@ serve(async (req) => {
       return new Response('ok')
     }
 
+    // =========================================================================
+    // NOVO: SISTEMA DE INTELIGÊNCIA DE PRAZO E STATUS DO PEDIDO
+    // =========================================================================
+    const { data: lastOrder } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', currentUserId)
+      .eq('store_slug', currentStoreSlug)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const menuData = storeData.menu_data;
+    let orderContext = "O cliente NÃO possui pedidos em andamento no momento.";
+    let activeOrder = null;
+
+    if (lastOrder && (lastOrder.status === 'pendente' || lastOrder.status === 'confirmado')) {
+      activeOrder = lastOrder;
+      
+      // Cálculo do tempo
+      const orderTime = new Date(lastOrder.created_at).getTime();
+      const now = Date.now();
+      const elapsedMinutes = Math.floor((now - orderTime) / 60000);
+      
+      const prepMin = menuData.prepTime?.min || 30;
+      const prepMax = menuData.prepTime?.max || 50;
+      const timeLeft = prepMax - elapsedMinutes;
+
+      orderContext = `
+      ATENÇÃO! O cliente tem um PEDIDO EM ANDAMENTO (ID: ${lastOrder.id}):
+      - Status na cozinha: ${lastOrder.status}
+      - Tempo decorrido desde o pedido: ${elapsedMinutes} minutos
+      - Prazo da loja configurado pelo dono: ${prepMin} a ${prepMax} minutos
+      - Situação atual: ${timeLeft > 0 ? `Ainda dentro do prazo (faltam ${timeLeft} minutos para estourar).` : `ESTOUROU O PRAZO EM ${Math.abs(timeLeft)} MINUTOS.`}
+
+      INSTRUÇÕES ESPECÍFICAS SE O CLIENTE PERGUNTAR DA DEMORA OU STATUS:
+      1. Calcule e informe o tempo decorrido e a previsão de forma amigável.
+      2. Se estiver DENTRO do prazo, tranquilize o cliente dizendo que falta pouco.
+      3. Se já ESTOUROU O PRAZO (Tempo decorrido > Prazo Máximo), peça desculpas sinceras e OBRIGATORIAMENTE use a função 'alert_store_delay' para notificar a cozinha e o gerente no painel imediatamente.
+      `;
+    }
+
     const aiName = menuData.aiName || 'Garçom';
     const aiPersona = menuData.aiPersona || `Você é ${aiName}, um atendente educado.`;
     
@@ -125,18 +158,20 @@ serve(async (req) => {
       
       A loja é: ${menuData.title}
       Status: ${menuData.isOpen ? 'ABERTA' : 'FECHADA'}
+
+      ${orderContext}
       
       CARDÁPIO DA LOJA:
-      - Principal: ${menuData.title} (P: R$${menuData.prices.p}, M: R$${menuData.prices.m}, G: R$${menuData.prices.g})
+      - Principal: ${menuData.title} (P: R$${menuData.prices?.p || 0}, M: R$${menuData.prices?.m || 0}, G: R$${menuData.prices?.g || 0})
       - Adicionais: ${menuData.meats?.map(m => `${m.name} (+R$${m.price || 0})`).join(', ') || 'Nenhum'}
       - Bebidas: ${menuData.drinks?.map(d => `${d.name} (R$${d.price})`).join(', ') || 'Nenhuma'}
       - Taxa de Entrega: R$${menuData.deliveryFee || 0}
       
-      REGRAS:
+      REGRAS GERAIS:
       1. Se o cliente quiser fechar o pedido, confirme TODOS os itens escolhidos e a forma de pagamento (Pix, Dinheiro, Cartão).
-      2. Confirme se será Entrega no endereço cadastrado dele (${userProfile.address}) ou Retirada.
-      3. APENAS quando o cliente confirmar tudo e disser que pode fechar, VOCÊ DEVE OBRIGATORIAMENTE chamar a função 'register_order'.
-      4. Mantenha respostas curtas.
+      2. Confirme se será Entrega no endereço cadastrado (${userProfile.address}) ou Retirada.
+      3. APENAS quando o cliente confirmar tudo, VOCÊ DEVE OBRIGATORIAMENTE chamar a função 'register_order'.
+      4. Mantenha respostas curtas e objetivas.
     `;
 
     const tools = [
@@ -156,6 +191,20 @@ serve(async (req) => {
             required: ["items", "payment_method", "total_amount", "delivery_type"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "alert_store_delay",
+          description: "Notifica o restaurante/lojista de que o pedido estourou o prazo e o cliente reclamou da demora.",
+          parameters: {
+            type: "object",
+            properties: {
+              message: { type: "string", description: "A resposta que você quer dar ao cliente confirmando que avisou a gerência." }
+            },
+            required: ["message"]
+          }
+        }
       }
     ];
 
@@ -173,7 +222,7 @@ serve(async (req) => {
       });
 
       if (!aiResponse.ok) {
-        await sendTelegramMessage("Ops! Meu cérebro de Inteligência Artificial deu uma travadinha (Erro na OpenAI). Por favor, avise o dono da loja!");
+        await sendTelegramMessage("Ops! Meu cérebro de Inteligência Artificial deu uma travadinha. Por favor, avise o dono da loja!");
         return new Response('ok')
       }
 
@@ -181,8 +230,11 @@ serve(async (req) => {
       let responseMessage = aiData.choices[0].message;
       let replyText = responseMessage.content;
 
+      // PROCESSAR FUNÇÕES CHAMADAS PELA IA
       if (responseMessage.tool_calls) {
         for (const toolCall of responseMessage.tool_calls) {
+          
+          // Função: Registrar Pedido
           if (toolCall.function.name === 'register_order') {
             const args = JSON.parse(toolCall.function.arguments);
             const address = args.delivery_type === 'retirada' ? 'RETIRADA' : userProfile.address;
@@ -206,8 +258,26 @@ serve(async (req) => {
               method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.7 }),
             });
-            const secondData = await secondResponse.json();
-            replyText = secondData.choices[0].message.content;
+            replyText = (await secondResponse.json()).choices[0].message.content;
+          }
+          
+          // Função: Alerta de Atraso
+          else if (toolCall.function.name === 'alert_store_delay') {
+            if (activeOrder && !activeOrder.customer_name.includes('⚠️')) {
+              // Modifica o nome do cliente no banco para fazer o painel piscar em vermelho
+              await supabase.from('orders').update({
+                customer_name: `⚠️ ATRASADO - ${activeOrder.customer_name}`
+              }).eq('id', activeOrder.id);
+            }
+
+            messages.push(responseMessage);
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: "Restaurante notificado no painel administrativo com sucesso!" });
+
+            const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.7 }),
+            });
+            replyText = (await secondResponse.json()).choices[0].message.content;
           }
         }
       }
