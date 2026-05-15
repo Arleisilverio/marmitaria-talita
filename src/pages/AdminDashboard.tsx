@@ -245,13 +245,14 @@ const AIAssistantSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: Men
           </div>
           <div>
             <h3 className="text-white font-bold text-xl">Seu Garçom Virtual</h3>
-            <p className="text-zinc-400 text-sm">Configure a inteligência artificial da sua loja.</p>
+            <p className="text-zinc-400 text-sm">A inteligência artificial com a cara da sua loja.</p>
           </div>
         </div>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-6">
-          O seu garçom virtual pode tirar pedidos e responder dúvidas dos clientes automaticamente pelo Telegram. 
-          Defina o nome dele e como ele deve se comportar.
-        </p>
+        <div className="bg-black/30 border border-white/5 p-4 rounded-2xl mb-6">
+          <p className="text-zinc-300 text-sm leading-relaxed">
+            Sua loja está conectada ao <b>Robô Global da Plataforma</b>. Você só precisa definir o <b>nome</b> e a <b>personalidade</b>. Quando o cliente acessar pelo seu link, o robô automaticamente assumirá essa identidade e lerá o seu cardápio!
+          </p>
+        </div>
 
         <div className="space-y-5">
           <div>
@@ -274,20 +275,6 @@ const AIAssistantSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: Men
               placeholder="Ex: Você é um pizzaiolo italiano muito animado. Chame os clientes de 'Amico' e seja sempre rápido nas respostas." 
             />
             <p className="text-[10px] text-zinc-500 mt-2">Dica: A IA já sabe ler o seu cardápio automaticamente. Escreva aqui apenas como ela deve "falar".</p>
-          </div>
-
-          <div className="pt-4 border-t border-white/10">
-            <label className="text-[10px] text-primary uppercase font-black tracking-widest block mb-2 flex items-center gap-2">
-              <Send className="w-3 h-3" /> @Username do Bot do Telegram
-            </label>
-            <input 
-              type="text" 
-              value={localMenu.telegramBotUsername || ''} 
-              onChange={e => setLocalMenu({ ...localMenu, telegramBotUsername: e.target.value })} 
-              className="w-full bg-primary/5 border border-primary/20 p-4 rounded-xl text-white outline-none focus:border-primary" 
-              placeholder="Ex: SeuLancheBot (sem o @)" 
-            />
-            <p className="text-[10px] text-zinc-500 mt-2">Se você usa um robô central da plataforma, deixe igual ao recomendado pelo administrador.</p>
           </div>
         </div>
 
@@ -501,7 +488,7 @@ const OrderCard: React.FC<{ order: any; onUpdateStatus: (id: string, status: str
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient(); // <--- Inicia o gerenciador de cache
+  const queryClient = useQueryClient();
   
   const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'ai' | 'settings' | 'reports'>('orders');
   const [menu, setMenu] = useState<MenuData | null>(null);

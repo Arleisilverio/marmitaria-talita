@@ -19,6 +19,9 @@ const itemVariants = { hidden: { opacity: 0, y: 20, filter: 'blur(10px)' }, show
 const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
 type IconKey = keyof typeof AVAILABLE_ICONS;
 
+// BOT GLOBAL DA PLATAFORMA (Deve ser criado no BotFather por você, SuperAdmin)
+const GLOBAL_BOT_USERNAME = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || 'PracaDaQuebradaBot';
+
 export default function ClientHome() {
   const { slug } = useParams();
   const { addItem, total, items, setStoreSlug } = useCart();
@@ -168,12 +171,7 @@ export default function ClientHome() {
       return;
     }
 
-    const botName = menu.telegramBotUsername?.replace('@', '');
-    if (!botName) {
-      toast.error("O lojista ainda não configurou o Garçom IA no Telegram.");
-      return;
-    }
-    
+    // Passa o slug da loja e o ID do usuário para o bot Global!
     const payload = `${slug}__${currentUser.id}`;
     setTelegramPayload(payload);
     setShowTelegramModal(true);
@@ -212,23 +210,21 @@ export default function ClientHome() {
           {activeTab === 'menu' && (
             <motion.div key="menu-tab" variants={containerVariants} initial="hidden" animate="show">
               
-              {menu.telegramBotUsername && (
-                <section className="px-container mt-6">
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTelegramOrder}
-                    className="w-full bg-[#2AABEE]/10 border border-[#2AABEE]/30 p-5 rounded-3xl flex items-center justify-between shadow-[0_0_30px_rgba(42,171,238,0.15)] group transition-all hover:bg-[#2AABEE]/20"
-                  >
-                    <div className="flex items-center gap-4 text-left">
-                      <div className="w-12 h-12 rounded-full bg-[#2AABEE] flex items-center justify-center shadow-lg"><Send className="w-6 h-6 text-white ml-[-2px] mt-[2px]" /></div>
-                      <div>
-                        <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">Pedir com {menu.aiName || 'o Garçom IA'}</h3>
-                        <p className="text-[#2AABEE] text-xs font-medium">Faça seu pedido direto pelo Telegram de forma rápida!</p>
-                      </div>
+              <section className="px-container mt-6">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleTelegramOrder}
+                  className="w-full bg-[#2AABEE]/10 border border-[#2AABEE]/30 p-5 rounded-3xl flex items-center justify-between shadow-[0_0_30px_rgba(42,171,238,0.15)] group transition-all hover:bg-[#2AABEE]/20"
+                >
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="w-12 h-12 rounded-full bg-[#2AABEE] flex items-center justify-center shadow-lg"><Send className="w-6 h-6 text-white ml-[-2px] mt-[2px]" /></div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">Pedir com {menu.aiName || 'o Garçom IA'}</h3>
+                      <p className="text-[#2AABEE] text-xs font-medium">Faça seu pedido direto pelo Telegram de forma rápida!</p>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-[#2AABEE] opacity-50 group-hover:opacity-100 transition-opacity" />
-                  </motion.button>
-                </section>
-              )}
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-[#2AABEE] opacity-50 group-hover:opacity-100 transition-opacity" />
+                </motion.button>
+              </section>
 
               <section className="px-container mt-6">
                 <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl">
@@ -353,7 +349,7 @@ export default function ClientHome() {
                 </p>
                 
                 <button 
-                  onClick={() => window.open(`https://t.me/${menu.telegramBotUsername?.replace('@', '')}?start=${telegramPayload}`, '_blank')} 
+                  onClick={() => window.open(`https://t.me/${GLOBAL_BOT_USERNAME}?start=${telegramPayload}`, '_blank')} 
                   className="w-full bg-[#2AABEE] hover:bg-[#2AABEE]/80 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-[#2AABEE]/20 mb-6 text-lg"
                 >
                   <Send className="w-5 h-5" /> Abrir o Telegram
