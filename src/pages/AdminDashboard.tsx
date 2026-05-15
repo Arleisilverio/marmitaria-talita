@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { formatBRL, cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
-import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image as ImageIcon, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode, BarChart, Pizza, Flame, Leaf, Star } from 'lucide-react';
+import { Utensils, Receipt, Bike, Plus, Trash2, LogOut, ArrowLeft, Ban, Settings, Coffee, Beef, X, DollarSign, Image as ImageIcon, Type, AlignLeft, Clock, MapPin, Edit2, Check, ChevronUp, ChevronDown, GripVertical, Eye, EyeOff, Package, Layers, Upload, Share2, Link2, Copy, ExternalLink, QrCode, BarChart, Pizza, Flame, Leaf, Star, Bot, Send } from 'lucide-react';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,6 +19,10 @@ interface MenuData {
   sectionDrinksTitle?: string; sectionDrinksIcon?: string;
   meats: Meat[]; drinks: Drink[]; slides: Slide[]; 
   isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; 
+  // Configurações do Garçom IA
+  aiName?: string;
+  aiPersona?: string;
+  telegramBotUsername?: string;
 }
 
 const AVAILABLE_ICONS = { Utensils, Beef, Coffee, Pizza, Flame, Leaf, Star, Package };
@@ -111,6 +115,7 @@ const EditableSectionHeader = ({
   );
 };
 
+// ... DrinkEditor, MeatEditor, SlideEditor, MainDishEditor (Mantidos iguais ao original)
 const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: Drink) => void; onCancel: () => void }) => {
   const [name, setName] = useState(drink?.name || '');
   const [price, setPrice] = useState(drink?.price?.toString() || '');
@@ -150,7 +155,7 @@ const SlideEditor = ({ slide, onSave, onCancel }: { slide?: Slide; onSave: (s: S
   return (
     <div className="space-y-4">
       <ImageUploader value={image} onChange={setImage} label="Imagem do Slide" />
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Marmita do Dia" /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Título</label><input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Promoção do Dia" /></div>
       <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} placeholder="Ex: Especial de hoje" /></div>
       <div className="flex gap-3 pt-4 border-t border-white/5">
         <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
@@ -163,7 +168,7 @@ const SlideEditor = ({ slide, onSave, onCancel }: { slide?: Slide; onSave: (s: S
 const MainDishEditor = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData) => void }) => {
   const [localMenu, setLocalMenu] = useState<MenuData>({ ...menu });
   const [saving, setSaving] = useState(false);
-  const handleSave = async () => { if (!localMenu.title.trim()) return toast.error("Informe o nome do prato"); setSaving(true); await onSave(localMenu); setSaving(false); };
+  const handleSave = async () => { if (!localMenu.title.trim()) return toast.error("Informe o nome do produto"); setSaving(true); await onSave(localMenu); setSaving(false); };
   return (
     <div className="space-y-6">
       <ImageUploader value={localMenu.image} onChange={img => setLocalMenu({ ...localMenu, image: img })} label="Foto do Produto" />
@@ -214,6 +219,87 @@ const GeneralSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuDat
   );
 };
 
+// ======================================================
+// NOVO COMPONENTE: CONFIGURAÇÕES DA IA DO GARÇOM
+// ======================================================
+const AIAssistantSettings = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData) => void }) => {
+  const [localMenu, setLocalMenu] = useState<MenuData>({ ...menu });
+  const [saving, setSaving] = useState(false);
+  
+  const handleSave = async () => { 
+    setSaving(true); 
+    await onSave(localMenu); 
+    setSaving(false); 
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-primary/20 to-zinc-900 border border-primary/30 p-6 rounded-3xl">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/50">
+            <Bot className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-xl">Seu Garçom Virtual</h3>
+            <p className="text-zinc-400 text-sm">Configure a inteligência artificial da sua loja.</p>
+          </div>
+        </div>
+        <p className="text-zinc-300 text-sm leading-relaxed mb-6">
+          O seu garçom virtual pode tirar pedidos e responder dúvidas dos clientes automaticamente pelo Telegram. 
+          Defina o nome dele e como ele deve se comportar.
+        </p>
+
+        <div className="space-y-5">
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Garçom</label>
+            <input 
+              type="text" 
+              value={localMenu.aiName || ''} 
+              onChange={e => setLocalMenu({ ...localMenu, aiName: e.target.value })} 
+              className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" 
+              placeholder="Ex: Luigi, Mário, Chef Carlos..." 
+            />
+          </div>
+          
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Personalidade e Instruções</label>
+            <textarea 
+              value={localMenu.aiPersona || ''} 
+              onChange={e => setLocalMenu({ ...localMenu, aiPersona: e.target.value })} 
+              className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-y min-h-[120px]" 
+              placeholder="Ex: Você é um pizzaiolo italiano muito animado. Chame os clientes de 'Amico' e seja sempre rápido nas respostas." 
+            />
+            <p className="text-[10px] text-zinc-500 mt-2">Dica: A IA já sabe ler o seu cardápio automaticamente. Escreva aqui apenas como ela deve "falar".</p>
+          </div>
+
+          <div className="pt-4 border-t border-white/10">
+            <label className="text-[10px] text-primary uppercase font-black tracking-widest block mb-2 flex items-center gap-2">
+              <Send className="w-3 h-3" /> @Username do Bot do Telegram
+            </label>
+            <input 
+              type="text" 
+              value={localMenu.telegramBotUsername || ''} 
+              onChange={e => setLocalMenu({ ...localMenu, telegramBotUsername: e.target.value })} 
+              className="w-full bg-primary/5 border border-primary/20 p-4 rounded-xl text-white outline-none focus:border-primary" 
+              placeholder="Ex: SeuLancheBot (sem o @)" 
+            />
+            <p className="text-[10px] text-zinc-500 mt-2">Se você usa um robô central da plataforma, deixe igual ao recomendado pelo administrador.</p>
+          </div>
+        </div>
+
+        <button 
+          onClick={handleSave} 
+          disabled={saving} 
+          className="w-full mt-6 bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
+        >
+          {saving ? 'Salvando IA...' : <><Check className="w-5 h-5" /> Salvar Garçom IA</>}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ... Restante do código: DrinksManager, MeatsManager, SlidesManager, ReportsView, ShareLinks, OrderCard
 const DrinksManager = ({ drinks, onUpdate }: { drinks: Drink[]; onUpdate: (d: Drink[]) => void }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingDrink, setEditingDrink] = useState<Drink | undefined>();
@@ -296,9 +382,6 @@ const SlidesManager = ({ slides, onUpdate }: { slides: Slide[]; onUpdate: (s: Sl
   );
 };
 
-// ======================================================
-// COMPONENTE: RELATÓRIOS E FATURAMENTO
-// ======================================================
 const ReportsView = ({ orders }: { orders: any[] }) => {
   const [dateRange, setDateRange] = useState({
     start: format(new Date(), 'yyyy-MM-dd'),
@@ -309,8 +392,6 @@ const ReportsView = ({ orders }: { orders: any[] }) => {
     const orderDate = new Date(o.created_at);
     const start = startOfDay(new Date(dateRange.start + 'T00:00:00'));
     const end = endOfDay(new Date(dateRange.end + 'T00:00:00'));
-    
-    // Consideramos apenas pedidos entregues/concluídos para o faturamento real
     return orderDate >= start && orderDate <= end && o.status === 'entregue';
   });
 
@@ -327,58 +408,25 @@ const ReportsView = ({ orders }: { orders: any[] }) => {
       <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl flex flex-wrap gap-4 items-end shadow-lg">
         <div className="flex-1 min-w-[150px]">
           <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Data Inicial</label>
-          <input 
-            type="date" 
-            value={dateRange.start} 
-            onChange={e => setDateRange({...dateRange, start: e.target.value})} 
-            className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" 
-            style={{ colorScheme: 'dark' }}
-          />
+          <input type="date" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" style={{ colorScheme: 'dark' }} />
         </div>
         <div className="flex-1 min-w-[150px]">
           <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Data Final</label>
-          <input 
-            type="date" 
-            value={dateRange.end} 
-            onChange={e => setDateRange({...dateRange, end: e.target.value})} 
-            className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" 
-            style={{ colorScheme: 'dark' }}
-          />
+          <input type="date" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary font-mono" style={{ colorScheme: 'dark' }} />
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-primary/10 border border-primary/20 p-6 rounded-3xl relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10"><DollarSign className="w-24 h-24 text-primary" /></div>
-          <p className="text-[10px] text-primary uppercase font-black tracking-widest mb-1 relative z-10">Faturamento Total</p>
-          <p className="text-4xl font-black text-white relative z-10">{formatBRL(totalRevenue)}</p>
-        </div>
-        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-5"><Receipt className="w-24 h-24 text-white" /></div>
-          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Pedidos Concluídos</p>
-          <p className="text-4xl font-black text-white relative z-10">{filteredOrders.length}</p>
-        </div>
-        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-5"><BarChart className="w-24 h-24 text-white" /></div>
-          <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Ticket Médio</p>
-          <p className="text-4xl font-black text-white relative z-10">{formatBRL(filteredOrders.length ? totalRevenue / filteredOrders.length : 0)}</p>
-        </div>
+        <div className="bg-primary/10 border border-primary/20 p-6 rounded-3xl relative overflow-hidden"><div className="absolute -right-4 -bottom-4 opacity-10"><DollarSign className="w-24 h-24 text-primary" /></div><p className="text-[10px] text-primary uppercase font-black tracking-widest mb-1 relative z-10">Faturamento Total</p><p className="text-4xl font-black text-white relative z-10">{formatBRL(totalRevenue)}</p></div>
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden"><div className="absolute -right-4 -bottom-4 opacity-5"><Receipt className="w-24 h-24 text-white" /></div><p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Pedidos Concluídos</p><p className="text-4xl font-black text-white relative z-10">{filteredOrders.length}</p></div>
+        <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl relative overflow-hidden"><div className="absolute -right-4 -bottom-4 opacity-5"><BarChart className="w-24 h-24 text-white" /></div><p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1 relative z-10">Ticket Médio</p><p className="text-4xl font-black text-white relative z-10">{formatBRL(filteredOrders.length ? totalRevenue / filteredOrders.length : 0)}</p></div>
       </div>
-
       <div className="bg-zinc-900 border border-white/5 p-6 rounded-3xl shadow-lg">
         <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2"><DollarSign className="w-5 h-5 text-primary" /> Faturamento por Pagamento</h3>
         <div className="space-y-3">
           {Object.entries(paymentMethods).map(([method, amount]) => (
-            <div key={method} className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5">
-              <span className="text-zinc-400 uppercase text-xs font-bold tracking-widest">{method.replace('_', ' ')}</span>
-              <span className="text-white font-bold text-lg">{formatBRL(amount as number)}</span>
-            </div>
+            <div key={method} className="flex justify-between items-center bg-black/30 p-4 rounded-xl border border-white/5"><span className="text-zinc-400 uppercase text-xs font-bold tracking-widest">{method.replace('_', ' ')}</span><span className="text-white font-bold text-lg">{formatBRL(amount as number)}</span></div>
           ))}
-          {Object.keys(paymentMethods).length === 0 && (
-            <div className="text-center py-10 text-zinc-600">
-              <p>Nenhum dado financeiro encontrado neste período.</p>
-            </div>
-          )}
+          {Object.keys(paymentMethods).length === 0 && <div className="text-center py-10 text-zinc-600"><p>Nenhum dado financeiro encontrado neste período.</p></div>}
         </div>
       </div>
     </div>
@@ -389,14 +437,9 @@ const ShareLinks = ({ storeSlug, storeName }: { storeSlug: string; storeName: st
   const [showModal, setShowModal] = useState(false);
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://marmitaria.com';
   const storeUrl = `${baseUrl}/${storeSlug}`;
-  const siteUrl = baseUrl;
   
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success(`${label} copiado!`);
-    }).catch(() => {
-      toast.error("Erro ao copiar");
-    });
+    navigator.clipboard.writeText(text).then(() => toast.success(`${label} copiado!`)).catch(() => toast.error("Erro ao copiar"));
   };
   
   return (
@@ -455,7 +498,7 @@ const OrderCard: React.FC<{ order: any; onUpdateStatus: (id: string, status: str
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'settings' | 'reports'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'ai' | 'settings' | 'reports'>('orders');
   const [menu, setMenu] = useState<MenuData | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -502,13 +545,26 @@ export default function AdminDashboard() {
         isOpen: menuData?.isOpen ?? true, 
         hasDelivery: menuData?.hasDelivery ?? true, 
         deliveryFee: menuData?.deliveryFee ?? 5, 
-        prepTime: menuData?.prepTime || { min: 30, max: 50 } 
+        prepTime: menuData?.prepTime || { min: 30, max: 50 },
+        aiName: menuData?.aiName || '',
+        aiPersona: menuData?.aiPersona || '',
+        telegramBotUsername: menuData?.telegramBotUsername || ''
       });
       setOrders(ordersData);
     } catch (err) { console.error("Erro:", err); toast.error("Erro ao carregar dados."); } finally { setLoading(false); }
   };
 
-  const handleSavePart = async (updatedMenu: MenuData) => { if (!storeSlug) return; try { await api.updateMenu(storeSlug, updatedMenu); setMenu(updatedMenu); toast.success("Alterações salvas!"); } catch { toast.error("Erro ao salvar."); } };
+  const handleSavePart = async (updatedMenu: MenuData) => { 
+    if (!storeSlug) return; 
+    try { 
+      await api.updateMenu(storeSlug, updatedMenu); 
+      setMenu(updatedMenu); 
+      toast.success("Alterações salvas!"); 
+    } catch { 
+      toast.error("Erro ao salvar."); 
+    } 
+  };
+  
   const handleUpdateStatus = async (orderId: string, newStatus: string) => { try { await api.updateOrderStatus(orderId, newStatus); setOrders(current => current.map(o => o.id === orderId ? { ...o, status: newStatus } : o)); toast.success(`Pedido ${newStatus}!`); } catch { toast.error("Erro ao atualizar."); } };
 
   if (loading) return <div className="min-h-screen bg-black flex flex-col items-center justify-center"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div><p className="text-zinc-500 font-mono text-xs uppercase">Sincronizando...</p></div>;
@@ -536,6 +592,7 @@ export default function AdminDashboard() {
         <div className="flex gap-2 mb-8 bg-zinc-900/50 p-1.5 rounded-2xl w-fit border border-white/5 flex-wrap">
           <button onClick={() => setActiveTab('orders')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'orders' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Receipt className="w-4 h-4" /> Pedidos</button>
           <button onClick={() => setActiveTab('menu')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'menu' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Package className="w-4 h-4" /> Cardápio</button>
+          <button onClick={() => setActiveTab('ai')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'ai' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Bot className="w-4 h-4" /> Garçom IA</button>
           <button onClick={() => setActiveTab('reports')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'reports' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><BarChart className="w-4 h-4" /> Relatórios</button>
           <button onClick={() => setActiveTab('settings')} className={cn("px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2", activeTab === 'settings' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-zinc-500 hover:text-white")}><Settings className="w-4 h-4" /> Configs</button>
         </div>
@@ -575,6 +632,11 @@ export default function AdminDashboard() {
                 <DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} />
               </div>
               <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Layers className="text-primary w-6 h-6" /> Slides do Carrossel</h2><SlidesManager slides={menu.slides} onUpdate={slides => handleSavePart({ ...menu, slides })} /></div>
+            </motion.div>
+          )}
+          {activeTab === 'ai' && (
+            <motion.div key="ai" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <AIAssistantSettings menu={menu} onSave={handleSavePart} />
             </motion.div>
           )}
           {activeTab === 'reports' && (

@@ -9,7 +9,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send } from 'lucide-react';
 import AIChat from '../components/AIChat';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
@@ -188,6 +188,18 @@ export default function ClientHome() {
     toast.success(`${drink.name} adicionado!`);
   };
 
+  // Redirecionamento para o Telegram
+  const handleTelegramOrder = () => {
+    const botName = menu.telegramBotUsername?.replace('@', '');
+    if (!botName) {
+      toast.error("O lojista ainda não configurou o Garçom IA no Telegram.");
+      return;
+    }
+    // Deep Link do Telegram: t.me/Bot?start=store_slug
+    const telegramUrl = `https://t.me/${botName}?start=${slug}`;
+    window.open(telegramUrl, '_blank');
+  };
+
   // Dinamic Icons
   const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
   const DrinksIcon = AVAILABLE_ICONS[(menu.sectionDrinksIcon as IconKey)] || AVAILABLE_ICONS.Coffee;
@@ -245,6 +257,31 @@ export default function ClientHome() {
           {activeTab === 'menu' && (
             <motion.div key="menu-tab" variants={containerVariants} initial="hidden" animate="show">
               
+              {/* BOTÃO TELEGRAM / GARÇOM VIRTUAL */}
+              {menu.telegramBotUsername && (
+                <section className="px-container mt-6">
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleTelegramOrder}
+                    className="w-full bg-[#2AABEE]/10 border border-[#2AABEE]/30 p-5 rounded-3xl flex items-center justify-between shadow-[0_0_30px_rgba(42,171,238,0.15)] group transition-all hover:bg-[#2AABEE]/20"
+                  >
+                    <div className="flex items-center gap-4 text-left">
+                      <div className="w-12 h-12 rounded-full bg-[#2AABEE] flex items-center justify-center shadow-lg">
+                        <Send className="w-6 h-6 text-white ml-[-2px] mt-[2px]" />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-bold text-lg leading-tight flex items-center gap-2">
+                          Pedir com {menu.aiName || 'o Garçom IA'}
+                        </h3>
+                        <p className="text-[#2AABEE] text-xs font-medium">Faça seu pedido direto pelo Telegram de forma rápida!</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-[#2AABEE] opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </motion.button>
+                </section>
+              )}
+
               {/* CARROSSEL */}
               <section className="px-container mt-6">
                 <div className="relative h-64 md:h-96 rounded-3xl overflow-hidden bg-zinc-900 border border-white/5 shadow-2xl">
