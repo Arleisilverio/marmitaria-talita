@@ -12,14 +12,19 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/hooks';
 
+interface Product { id: string; name: string; description: string; price: number; is_available?: boolean; image?: string; }
 interface Drink { id: string; name: string; price: number; is_available?: boolean; image?: string; }
 interface Meat { id: string; name: string; price?: number; }
 interface Slide { id: string; image: string; title: string; description: string; }
+
 interface MenuData { 
   title: string; description: string; image: string; prices: { p: number; m: number; g: number }; 
+  showMainDish?: boolean; // Novo: Ligar/desligar o prato principal P/M/G
   sectionMainTitle?: string; sectionMainIcon?: string;
+  sectionProductsTitle?: string; sectionProductsIcon?: string; // Novo
   sectionMeatsTitle?: string; sectionMeatsIcon?: string;
   sectionDrinksTitle?: string; sectionDrinksIcon?: string;
+  products?: Product[]; // Novo
   meats: Meat[]; drinks: Drink[]; slides: Slide[]; 
   isOpen: boolean; hasDelivery: boolean; deliveryFee: number; prepTime: number; 
   aiName?: string;
@@ -123,6 +128,62 @@ const EditableSectionHeader = ({
   );
 };
 
+// ==========================================
+// EDITOR DE PRODUTOS INDIVIDUAIS (NOVO)
+// ==========================================
+const ProductEditor = ({ product, onSave, onCancel }: { product?: Product; onSave: (p: Product) => void; onCancel: () => void }) => {
+  const [name, setName] = useState(product?.name || '');
+  const [description, setDescription] = useState(product?.description || '');
+  const [price, setPrice] = useState(product?.price?.toString() || '');
+  const [image, setImage] = useState(product?.image || '');
+  
+  return (
+    <div className="space-y-4 pb-4">
+      <ImageUploader value={image} onChange={setImage} label="Foto do Produto" />
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Nome do Produto</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="Ex: Bolo de Pote, Hamburguer..." /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Descrição</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={2} placeholder="Ingredientes e detalhes" /></div>
+      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2">Preço Fixo (R$)</label><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary" placeholder="15.90" /></div>
+      <div className="flex gap-3 pt-4 border-t border-white/5 mt-4">
+        <button onClick={onCancel} className="flex-1 bg-white/5 py-3 rounded-xl text-zinc-400 font-bold text-sm">Cancelar</button>
+        <button onClick={() => { if (!name.trim()) return toast.error("Informe o nome"); onSave({ id: product?.id || Date.now().toString(), name: name.trim(), description, price: parseFloat(price) || 0, image }); }} className="flex-1 bg-primary py-3 rounded-xl text-white font-bold text-sm">{product ? 'Salvar' : 'Adicionar'}</button>
+      </div>
+    </div>
+  );
+};
+
+const ProductsManager = ({ products, onUpdate }: { products: Product[]; onUpdate: (p: Product[]) => void }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const handleSave = (product: Product) => { if (editingProduct) onUpdate(products.map(p => p.id === product.id ? product : p)); else onUpdate([...products, product]); setShowModal(false); };
+  
+  return (
+    <>
+      <div className="space-y-4">
+        {products.length === 0 ? <div className="text-center py-12 text-zinc-500 bg-zinc-800/30 rounded-2xl border border-dashed border-white/5"><Package className="w-12 h-12 mx-auto mb-3 opacity-20" /><p className="text-sm">Nenhum produto cadastrado</p></div> : products.map(product => (
+          <div key={product.id} className="bg-zinc-800/50 p-4 rounded-xl border border-white/5 flex items-center gap-4">
+            {product.image ? <img src={product.image} alt={product.name} className="w-16 h-16 rounded-xl object-cover" /> : <div className="w-16 h-16 rounded-xl bg-zinc-900 flex items-center justify-center"><ImageIcon className="w-6 h-6 text-zinc-700" /></div>}
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold truncate">{product.name}</p>
+              <p className="text-zinc-500 text-xs truncate">{product.description || 'Sem descrição'}</p>
+              <p className="text-primary font-bold text-sm mt-1">{formatBRL(product.price)}</p>
+            </div>
+            <div className={cn("w-2 h-2 rounded-full", product.is_available !== false ? "bg-green-500" : "bg-red-500")} />
+            <div className="flex flex-col sm:flex-row items-center gap-1">
+              <button onClick={() => onUpdate(products.map(p => p.id === product.id ? { ...p, is_available: !p.is_available } : p))} className="p-2 hover:bg-white/5 rounded-lg" title={product.is_available !== false ? 'Desativar' : 'Ativar'}>{product.is_available !== false ? <Eye className="w-4 h-4 text-green-500" /> : <EyeOff className="w-4 h-4 text-zinc-500" />}</button>
+              <button onClick={() => { setEditingProduct(product); setShowModal(true); }} className="p-2 hover:bg-white/5 rounded-lg text-primary"><Edit2 className="w-4 h-4" /></button>
+              <button onClick={() => { if (confirm('Remover este produto?')) onUpdate(products.filter(p => p.id !== product.id)); }} className="p-2 hover:bg-white/5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
+        <button onClick={() => { setEditingProduct(undefined); setShowModal(true); }} className="w-full bg-primary/10 border border-primary/20 py-4 rounded-xl text-primary font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/20"><Plus className="w-5 h-5" /> Adicionar Novo Produto</button>
+      </div>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingProduct ? "Editar Produto" : "Novo Produto"}><ProductEditor product={editingProduct} onSave={handleSave} onCancel={() => setShowModal(false)} /></Modal>
+    </>
+  );
+};
+// ==========================================
+
+
 const DrinkEditor = ({ drink, onSave, onCancel }: { drink?: Drink; onSave: (d: Drink) => void; onCancel: () => void }) => {
   const [name, setName] = useState(drink?.name || '');
   const [price, setPrice] = useState(drink?.price?.toString() || '');
@@ -176,20 +237,34 @@ const MainDishEditor = ({ menu, onSave }: { menu: MenuData; onSave: (m: MenuData
   const [localMenu, setLocalMenu] = useState<MenuData>({ ...menu });
   const [saving, setSaving] = useState(false);
   const handleSave = async () => { if (!localMenu.title.trim()) return toast.error("Informe o nome do produto"); setSaving(true); await onSave(localMenu); setSaving(false); };
+  
   return (
     <div className="space-y-6">
-      <ImageUploader value={localMenu.image} onChange={img => setLocalMenu({ ...localMenu, image: img })} label="Foto do Produto" />
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><Type className="w-4 h-4" /> Nome do Produto Principal</label><input type="text" value={localMenu.title} onChange={e => setLocalMenu({ ...localMenu, title: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary text-lg font-bold" placeholder="Ex: Marmita do Dia, Açaí Tradicional..." /></div>
-      <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição</label><textarea value={localMenu.description} onChange={e => setLocalMenu({ ...localMenu, description: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={3} placeholder="Descreva os ingredientes..." /></div>
-      <div>
-        <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Preços por Tamanho</label>
-        <div className="grid grid-cols-3 gap-4">
-          {[{ key: 'p', label: 'Pequeno (P)' }, { key: 'm', label: 'Médio (M)' }, { key: 'g', label: 'Grande (G)' }].map(({ key, label }) => (
-            <div key={key}><span className="text-[10px] text-zinc-500 uppercase block mb-2 font-black">{label}</span><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">R$</span><input type="number" step="0.01" value={localMenu.prices[key as keyof typeof localMenu.prices]} onChange={e => setLocalMenu({ ...localMenu, prices: { ...localMenu.prices, [key]: parseFloat(e.target.value) || 0 } })} className="w-full bg-black/40 border border-white/10 p-4 pl-10 rounded-xl text-white outline-none focus:border-primary text-center font-bold" /></div></div>
-          ))}
+      <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-4 rounded-2xl">
+        <div>
+          <h4 className="text-white font-bold text-sm">Exibir Prato Principal (Com Tamanhos)</h4>
+          <p className="text-zinc-400 text-xs">Ideal para Marmitarias, Pizzarias ou Lojas de 1 Produto.</p>
         </div>
+        <button onClick={() => setLocalMenu({ ...localMenu, showMainDish: localMenu.showMainDish === false ? true : false })} className={cn("w-12 h-6 rounded-full flex items-center px-1 transition-all", localMenu.showMainDish !== false ? "bg-primary justify-end" : "bg-zinc-700 justify-start")}><div className="w-4 h-4 rounded-full bg-white shadow-lg" /></button>
       </div>
-      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Configurações Acima</>}</button>
+
+      {localMenu.showMainDish !== false && (
+        <div className="space-y-6 pt-4 border-t border-white/5">
+          <ImageUploader value={localMenu.image} onChange={img => setLocalMenu({ ...localMenu, image: img })} label="Foto do Produto" />
+          <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><Type className="w-4 h-4" /> Nome do Produto Principal</label><input type="text" value={localMenu.title} onChange={e => setLocalMenu({ ...localMenu, title: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary text-lg font-bold" placeholder="Ex: Marmita do Dia, Açaí Tradicional..." /></div>
+          <div><label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-2 flex items-center gap-2"><AlignLeft className="w-4 h-4" /> Descrição</label><textarea value={localMenu.description} onChange={e => setLocalMenu({ ...localMenu, description: e.target.value })} className="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-white outline-none focus:border-primary resize-none" rows={3} placeholder="Descreva os ingredientes..." /></div>
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Preços por Tamanho</label>
+            <div className="grid grid-cols-3 gap-4">
+              {[{ key: 'p', label: 'Pequeno (P)' }, { key: 'm', label: 'Médio (M)' }, { key: 'g', label: 'Grande (G)' }].map(({ key, label }) => (
+                <div key={key}><span className="text-[10px] text-zinc-500 uppercase block mb-2 font-black">{label}</span><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 font-bold">R$</span><input type="number" step="0.01" value={localMenu.prices[key as keyof typeof localMenu.prices]} onChange={e => setLocalMenu({ ...localMenu, prices: { ...localMenu.prices, [key]: parseFloat(e.target.value) || 0 } })} className="w-full bg-black/40 border border-white/10 p-4 pl-10 rounded-xl text-white outline-none focus:border-primary text-center font-bold" /></div></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <button onClick={handleSave} disabled={saving} className="w-full bg-primary py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2">{saving ? 'Salvando...' : <><Check className="w-5 h-5" /> Salvar Configurações</>}</button>
     </div>
   );
 };
@@ -525,12 +600,16 @@ export default function AdminDashboard() {
         description: menuData?.description || '', 
         image: menuData?.image || '', 
         prices: menuData?.prices || { p: 0, m: 0, g: 0 }, 
+        showMainDish: menuData?.showMainDish ?? true,
         sectionMainTitle: menuData?.sectionMainTitle || 'Produto Principal',
         sectionMainIcon: menuData?.sectionMainIcon || 'Utensils',
+        sectionProductsTitle: menuData?.sectionProductsTitle || 'Catálogo de Produtos',
+        sectionProductsIcon: menuData?.sectionProductsIcon || 'Package',
         sectionMeatsTitle: menuData?.sectionMeatsTitle || 'Adicionais / Complementos',
         sectionMeatsIcon: menuData?.sectionMeatsIcon || 'Beef',
         sectionDrinksTitle: menuData?.sectionDrinksTitle || 'Bebidas / Extras',
         sectionDrinksIcon: menuData?.sectionDrinksIcon || 'Coffee',
+        products: menuData?.products || [],
         meats: menuData?.meats || [], 
         drinks: menuData?.drinks || [], 
         slides: menuData?.slides || [], 
@@ -551,10 +630,7 @@ export default function AdminDashboard() {
     try { 
       await api.updateMenu(storeSlug, updatedMenu); 
       setMenu(updatedMenu); 
-      
-      // FORÇA A LIMPEZA DA MEMÓRIA PARA O CLIENTE VER A MUDANÇA NA HORA
       queryClient.invalidateQueries({ queryKey: queryKeys.menu(storeSlug) });
-      
       toast.success("Alterações salvas!"); 
     } catch { 
       toast.error("Erro ao salvar."); 
@@ -603,6 +679,7 @@ export default function AdminDashboard() {
           )}
           {activeTab === 'menu' && (
             <motion.div key="menu" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+              
               <div className="glass-card p-6 rounded-3xl border border-white/5">
                 <EditableSectionHeader 
                   title={menu.sectionMainTitle} iconKey={menu.sectionMainIcon} 
@@ -611,6 +688,17 @@ export default function AdminDashboard() {
                 />
                 <MainDishEditor menu={menu} onSave={handleSavePart} />
               </div>
+
+              {/* SEÇÃO NOVO CATÁLOGO DE PRODUTOS */}
+              <div className="glass-card p-6 rounded-3xl border border-white/5">
+                <EditableSectionHeader 
+                  title={menu.sectionProductsTitle} iconKey={menu.sectionProductsIcon} 
+                  defaultTitle="Catálogo de Produtos" defaultIcon="Package" 
+                  onSave={(t, i) => handleSavePart({ ...menu, sectionProductsTitle: t, sectionProductsIcon: i })} 
+                />
+                <ProductsManager products={menu.products || []} onUpdate={products => handleSavePart({ ...menu, products })} />
+              </div>
+
               <div className="glass-card p-6 rounded-3xl border border-white/5">
                 <EditableSectionHeader 
                   title={menu.sectionMeatsTitle} iconKey={menu.sectionMeatsIcon} 
@@ -619,6 +707,7 @@ export default function AdminDashboard() {
                 />
                 <MeatsManager meats={menu.meats} onUpdate={meats => handleSavePart({ ...menu, meats })} />
               </div>
+              
               <div className="glass-card p-6 rounded-3xl border border-white/5">
                 <EditableSectionHeader 
                   title={menu.sectionDrinksTitle} iconKey={menu.sectionDrinksIcon} 
@@ -627,6 +716,7 @@ export default function AdminDashboard() {
                 />
                 <DrinksManager drinks={menu.drinks} onUpdate={drinks => handleSavePart({ ...menu, drinks })} />
               </div>
+              
               <div className="glass-card p-6 rounded-3xl border border-white/5"><h2 className="text-white font-bold text-xl flex items-center gap-2 mb-6"><Layers className="text-primary w-6 h-6" /> Slides do Carrossel</h2><SlidesManager slides={menu.slides} onUpdate={slides => handleSavePart({ ...menu, slides })} /></div>
             </motion.div>
           )}

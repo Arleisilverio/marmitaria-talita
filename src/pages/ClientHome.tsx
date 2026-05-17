@@ -9,7 +9,7 @@ import { useCart } from '../contexts/CartContext';
 import { cn, formatBRL } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { useMenu } from '../lib/hooks';
-import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send, X, Copy } from 'lucide-react';
+import { Utensils, Receipt, User, ShoppingCart, Plus, Leaf, ShieldAlert, ArrowLeft, ArrowRight, ShieldOff, Beef, Coffee, Pizza, Flame, Star, Package, Send, X, Copy, Image as ImageIcon } from 'lucide-react';
 import OrdersView from '../components/OrdersView';
 import ProfileView from '../components/ProfileView';
 
@@ -138,6 +138,7 @@ export default function ClientHome() {
   const activeSlides = menu.slides?.length > 0 ? menu.slides : [{ id: 'default', image: menu.image, title: menu.title, description: 'Sabor que você merece' }];
 
   // Filtra itens para só mostrar o que está DISPONÍVEL
+  const availableProducts = menu.products?.filter((p: any) => p.is_available !== false) || [];
   const availableMeats = menu.meats?.filter((m: any) => m.is_available !== false) || [];
   const availableDrinks = menu.drinks?.filter((d: any) => d.is_available !== false) || [];
 
@@ -145,6 +146,12 @@ export default function ClientHome() {
     if (!menu.isOpen) return toast.error("Loja fechada no momento!");
     addItem({ id: `marmita_diaria`, name: menu.title, size: selectedSize.toUpperCase() as any, price: menu.prices[selectedSize], quantity: 1, type: 'dish' });
     toast.success("Adicionado ao carrinho!");
+  };
+
+  const handleAddProduct = (product: any) => {
+    if (!menu.isOpen) return toast.error("Loja fechada no momento!");
+    addItem({ id: product.id, name: product.name, price: product.price, quantity: 1, type: 'product' });
+    toast.success(`${product.name} adicionado!`);
   };
 
   const handleAddComplement = (meat: any) => {
@@ -171,12 +178,12 @@ export default function ClientHome() {
       return;
     }
 
-    // Passa o slug da loja e o ID do usuário para o bot Global!
     const payload = `${slug}__${currentUser.id}`;
     setTelegramPayload(payload);
     setShowTelegramModal(true);
   };
 
+  const ProductsIcon = AVAILABLE_ICONS[(menu.sectionProductsIcon as IconKey)] || AVAILABLE_ICONS.Package;
   const MeatsIcon = AVAILABLE_ICONS[(menu.sectionMeatsIcon as IconKey)] || AVAILABLE_ICONS.Beef;
   const DrinksIcon = AVAILABLE_ICONS[(menu.sectionDrinksIcon as IconKey)] || AVAILABLE_ICONS.Coffee;
 
@@ -246,25 +253,58 @@ export default function ClientHome() {
                 </div>
               </section>
 
-              <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
-                <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative shadow-2xl border border-white/5">
-                  <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
-                  <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider backdrop-blur-md">Destaque</div>
-                </motion.div>
-                <motion.div variants={itemVariants} className="flex flex-col justify-center">
-                  <h3 className="font-heading text-4xl font-bold text-white mb-4">{menu.title}</h3>
-                  <p className="text-zinc-400 text-lg mb-8 leading-relaxed">{menu.description}</p>
-                  <div className="mb-8">
-                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-3 tracking-widest">Escolha o Tamanho</p>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                      {(['p', 'm', 'g'] as const).map(size => (
-                        <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-4 px-6 rounded-2xl font-bold border whitespace-nowrap transition-all", selectedSize === size ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" : "bg-zinc-900 text-zinc-500 border-white/5 hover:bg-zinc-800")}>{size.toUpperCase()} • {formatBRL(menu.prices[size])}</button>
-                      ))}
+              {/* PRATO PRINCIPAL COM TAMANHOS (Opcional) */}
+              {menu.showMainDish !== false && (
+                <section className="px-container mt-12 grid md:grid-cols-2 gap-8">
+                  <motion.div variants={itemVariants} className="glass-card rounded-3xl overflow-hidden relative shadow-2xl border border-white/5">
+                    <img className="w-full h-full min-h-[300px] object-cover" src={menu.image} alt={menu.title} />
+                    <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow-lg uppercase tracking-wider backdrop-blur-md">Destaque</div>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="flex flex-col justify-center">
+                    <h3 className="font-heading text-4xl font-bold text-white mb-4">{menu.title}</h3>
+                    <p className="text-zinc-400 text-lg mb-8 leading-relaxed">{menu.description}</p>
+                    <div className="mb-8">
+                      <p className="text-[10px] text-zinc-500 uppercase font-black mb-3 tracking-widest">Escolha o Tamanho</p>
+                      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        {(['p', 'm', 'g'] as const).map(size => (
+                          <button key={size} onClick={() => setSelectedSize(size)} className={cn("py-4 px-6 rounded-2xl font-bold border whitespace-nowrap transition-all", selectedSize === size ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" : "bg-zinc-900 text-zinc-500 border-white/5 hover:bg-zinc-800")}>{size.toUpperCase()} • {formatBRL(menu.prices[size])}</button>
+                        ))}
+                      </div>
                     </div>
+                    <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl transition-transform active:scale-95", menu.isOpen ? "bg-primary text-white hover:brightness-110" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>ADICIONAR AO PEDIDO</button>
+                  </motion.div>
+                </section>
+              )}
+
+              {/* CATÁLOGO GERAL DE PRODUTOS */}
+              {availableProducts.length > 0 && (
+                <section className="px-container mt-16">
+                  <h4 className="font-heading text-2xl font-bold text-white mb-6 flex items-center gap-3"><ProductsIcon className="text-primary w-7 h-7" />{menu.sectionProductsTitle || 'Nossos Produtos'}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {availableProducts.map((product: any) => (
+                      <div key={product.id} className="bg-zinc-900/50 p-4 rounded-3xl flex gap-5 border border-white/5 hover:border-primary/30 transition-colors group">
+                        {product.image ? (
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-2xl overflow-hidden shadow-lg">
+                            <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          </div>
+                        ) : (
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 rounded-2xl bg-zinc-800 flex items-center justify-center"><ImageIcon className="w-8 h-8 text-zinc-600" /></div>
+                        )}
+                        <div className="flex flex-col justify-between flex-1 py-1">
+                          <div>
+                            <h5 className="font-bold text-white text-lg group-hover:text-primary transition-colors leading-tight mb-1">{product.name}</h5>
+                            <p className="text-zinc-500 text-xs sm:text-sm line-clamp-2 leading-relaxed">{product.description}</p>
+                          </div>
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="font-bold text-white md:text-lg">{formatBRL(product.price)}</span>
+                            <button onClick={() => handleAddProduct(product)} disabled={!menu.isOpen} className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-4 py-2 rounded-xl text-xs font-bold uppercase transition-colors active:scale-95 shadow-sm">Adicionar</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <button onClick={handleAddDish} disabled={!menu.isOpen} className={cn("w-full py-5 rounded-2xl font-heading font-black text-lg shadow-xl transition-transform active:scale-95", menu.isOpen ? "bg-primary text-white hover:brightness-110" : "bg-zinc-800 text-zinc-600 cursor-not-allowed")}>ADICIONAR AO PEDIDO</button>
-                </motion.div>
-              </section>
+                </section>
+              )}
 
               {availableMeats.length > 0 && (
                 <section className="px-container mt-16">
