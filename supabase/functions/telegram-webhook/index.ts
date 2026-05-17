@@ -99,10 +99,13 @@ serve(async (req) => {
       supabase.from('store_settings').select('menu_data').eq('store_slug', currentStoreSlug).maybeSingle()
     ]);
 
-    if (!storeData || !storeData.menu_data || !userProfile) {
-      await sendTelegramMessage("Ocorreu um erro ao carregar o cardápio. Tente conectar novamente.");
+    if (!storeData || !storeData.menu_data) {
+      await sendTelegramMessage("Ocorreu um erro ao carregar o cardápio da loja. Tente conectar novamente.");
       return new Response('ok')
     }
+
+    // Fallback de segurança para caso o cliente não tenha perfil preenchido
+    const profileData = userProfile || { full_name: 'Cliente VIP', phone: 'Não informado', address: 'Não informado' };
 
     const { data: lastOrder } = await supabase
       .from('orders')
@@ -144,18 +147,29 @@ serve(async (req) => {
     const aiName = menuData.aiName || 'Garçom';
     const aiPersona = menuData.aiPersona || `Você é ${aiName}, um atendente educado.`;
     
+    // Organiza os novos itens do cardápio para a IA entender
+    const productsList = menuData.products?.length ? menuData.products.filter(p => p.is_available !== false).map(p => `${p.name} (R$${p.price})`).join(', ') : 'Nenhum';
+    const meatsList = menuData.meats?.length ? menuData.meats.filter(m => m.is_available !== false).map(m => `${m.name} (+R$${m.price || 0})`).join(', ') : 'Nenhum';
+    const drinksList = menuData.drinks?.length ? menuData.drinks.filter(d => d.is_available !== false).map(d => `${d.name} (R$${d.price})`).join(', ') : 'Nenhuma';
+
+    let mainDishText = "";
+    if (menuData.showMainDish !== false) {
+      mainDishText = `- Prato Principal: ${menuData.title} (P: R$${menuData.prices?.p || 0}, M: R$${menuData.prices?.m || 0}, G: R$${menuData.prices?.g || 0})`;
+    }
+
     const systemPrompt = `
       ${aiPersona}
       
-      Cliente: ${userProfile.full_name} | Tel: ${userProfile.phone} | Endereço: ${userProfile.address}
+      Cliente: ${profileData.full_name || 'Cliente VIP'} | Tel: ${profileData.phone || 'Não informado'} | Endereço: ${profileData.address || 'Retirada'}
       Loja: ${menuData.title} | Status: ${menuData.isOpen ? 'ABERTA' : 'FECHADA'}
 
       ${orderContext}
       
       CARDÁPIO DA LOJA:
-      - Principal: ${menuData.title} (P: R$${menuData.prices?.p || 0}, M: R$${menuData.prices?.m || 0}, G: R$${menuData.prices?.g || 0})
-      - Adicionais: ${menuData.meats?.map(m => `${m.name} (+R$${m.price || 0})`).join(', ') || 'Nenhum'}
-      - Bebidas: ${menuData.drinks?.map(d => `${d.name} (R$${d.price})`).join(', ') || 'Nenhuma'}
+      ${mainDishText}
+      - Catálogo de Produtos Variados: ${productsList}
+      - Adicionais/Complementos: ${meatsList}
+      - Bebidas: ${drinksList}
       - Taxa de Entrega: R$${menuData.deliveryFee || 0}
       
       ⚠️ REGRAS RESTRITAS E LIMITES DE CONVERSA (MUITO IMPORTANTE):
@@ -210,7 +224,7 @@ serve(async (req) => {
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools, temperature: 0.3 }), // Diminui a temperatura para ficar menos "criativo/falador"
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools, temperature: 0.3 }),
       });
 
       if (!aiResponse.ok) {
@@ -228,12 +242,16 @@ serve(async (req) => {
           
           if (toolCall.function.name === 'register_order') {
             const args = JSON.parse(toolCall.function.arguments);
-            const address = args.delivery_type === 'retirada' ? 'RETIRADA' : userProfile.address;
+            const address = args.delivery_type === 'retirada' ? 'RETIRADA' : (profileData.address || 'Endereço não informado');
             
+            // Garantir que não haverá erro de banco de dados se o nome estiver vazio
+            const safeCustomerName = profileData.full_name || 'Cliente via Telegram';
+            const safePhone = profileData.phone || 'Sem Contato';
+
             const { error: orderError } = await supabase.from('orders').insert({
               user_id: currentUserId,
-              customer_name: userProfile.full_name,
-              customer_phone: userProfile.phone,
+              customer_name: safeCustomerName,
+              customer_phone: safePhone,
               delivery_address: address,
               payment_method: args.payment_method,
               total_amount: args.total_amount,
@@ -243,7 +261,7 @@ serve(async (req) => {
             });
 
             messages.push(responseMessage);
-            messages.push({ role: "tool", tool_call_id: toolCall.id, content: orderError ? "Erro ao salvar pedido." : "Pedido registrado com sucesso no painel da loja!" });
+            messages.push({ role: "tool", tool_call_id: toolCall.id, content: orderError ? "Erro ao salvar pedido no banco de dados. Diga que houve um erro." : "Pedido registrado com sucesso no painel da loja!" });
 
             const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
               method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
@@ -275,7 +293,7 @@ serve(async (req) => {
 
       await sendTelegramMessage(replyText);
 
-      const newHistory = [...chatHistory, { role: 'user', content: aiPromptText }, { role: 'assistant', content: replyText }].slice(-6); // Reduzi de -10 para -6 para economizar tokens lidos na memória
+      const newHistory = [...chatHistory, { role: 'user', content: aiPromptText }, { role: 'assistant', content: replyText }].slice(-6);
       await supabase.from('telegram_sessions').update({ history: newHistory }).eq('chat_id', chatId);
       
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
