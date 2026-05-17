@@ -104,8 +104,9 @@ serve(async (req) => {
       return new Response('ok')
     }
 
-    // Fallback de segurança para caso o cliente não tenha perfil preenchido
-    const profileData = userProfile || { full_name: 'Cliente VIP', phone: 'Não informado', address: 'Não informado' };
+    // VERIFICAÇÃO RÍGIDA DE PERFIL (Nome, Telefone e Endereço)
+    const profileData = userProfile || {};
+    const isProfileComplete = !!(profileData.full_name && profileData.phone && profileData.address);
 
     const { data: lastOrder } = await supabase
       .from('orders')
@@ -157,10 +158,27 @@ serve(async (req) => {
       mainDishText = `- Prato Principal: ${menuData.title} (P: R$${menuData.prices?.p || 0}, M: R$${menuData.prices?.m || 0}, G: R$${menuData.prices?.g || 0})`;
     }
 
+    // Regra rígida no cérebro da IA baseada no cadastro
+    let profileStatusPrompt = "";
+    if (!isProfileComplete) {
+      profileStatusPrompt = `
+      ⚠️ ALERTA CRÍTICO DE SISTEMA: O CADASTRO DESTE CLIENTE ESTÁ INCOMPLETO!
+      Faltam dados obrigatórios (Nome, Telefone ou Endereço).
+      
+      ORDEM SUPREMA: VOCÊ ESTÁ ESTRITAMENTE PROIBIDO DE TIRAR PEDIDOS OU CHAMAR A FUNÇÃO 'register_order'.
+      Sua ÚNICA tarefa agora é informar ao cliente educadamente a seguinte mensagem (ou algo parecido):
+      "Para que eu possa anotar seu pedido, por favor, volte rapidinho no aplicativo e preencha seu Nome, Telefone e Endereço na aba 'Perfil'."
+      Não prossiga com nenhum pedido até que isso seja feito.
+      `;
+    } else {
+      profileStatusPrompt = `Cliente: ${profileData.full_name} | Tel: ${profileData.phone} | Endereço: ${profileData.address}`;
+    }
+
     const systemPrompt = `
       ${aiPersona}
       
-      Cliente: ${profileData.full_name || 'Cliente VIP'} | Tel: ${profileData.phone || 'Não informado'} | Endereço: ${profileData.address || 'Retirada'}
+      ${profileStatusPrompt}
+
       Loja: ${menuData.title} | Status: ${menuData.isOpen ? 'ABERTA' : 'FECHADA'}
 
       ${orderContext}
@@ -177,7 +195,7 @@ serve(async (req) => {
       2. Se o cliente tentar sair do assunto, responder algo ofensivo ou fazer perguntas genéricas, responda APENAS E EXATAMENTE: "Desculpe, sou apenas o garçom virtual da loja. Posso te ajudar a escolher algo do nosso cardápio ou verificar seu pedido?" e não desenvolva o assunto.
       3. Seja SEMPRE extremamente CURTO, DIRETO e OBJETIVO. Use no máximo 2 a 3 frases por resposta para economizar tempo do cliente (e tokens).
       4. Se o cliente quiser fechar o pedido, confirme TODOS os itens, a forma de pagamento (Pix, Dinheiro, Cartão) e se é Entrega ou Retirada.
-      5. APENAS quando o cliente confirmar tudo, CHAME a função 'register_order'.
+      5. APENAS quando o cliente confirmar tudo (E SE TIVER CADASTRO COMPLETO), CHAME a função 'register_order'.
     `;
 
     const tools = [
@@ -241,33 +259,49 @@ serve(async (req) => {
         for (const toolCall of responseMessage.tool_calls) {
           
           if (toolCall.function.name === 'register_order') {
-            const args = JSON.parse(toolCall.function.arguments);
-            const address = args.delivery_type === 'retirada' ? 'RETIRADA' : (profileData.address || 'Endereço não informado');
             
-            // Garantir que não haverá erro de banco de dados se o nome estiver vazio
-            const safeCustomerName = profileData.full_name || 'Cliente via Telegram';
-            const safePhone = profileData.phone || 'Sem Contato';
+            // TRAVA RÍGIDA DE BACKEND: Se a IA tentou registrar sem cadastro, nós barramos a inserção!
+            if (!isProfileComplete) {
+              messages.push(responseMessage);
+              messages.push({ 
+                role: "tool", 
+                tool_call_id: toolCall.id, 
+                content: "ERRO DE SISTEMA: O cadastro do cliente está incompleto. Ação bloqueada. Diga ao cliente que ele OBRIGATORIAMENTE precisa acessar o aplicativo e preencher Nome, Telefone e Endereço na aba Perfil para liberar os pedidos." 
+              });
 
-            const { error: orderError } = await supabase.from('orders').insert({
-              user_id: currentUserId,
-              customer_name: safeCustomerName,
-              customer_phone: safePhone,
-              delivery_address: address,
-              payment_method: args.payment_method,
-              total_amount: args.total_amount,
-              status: 'pendente',
-              items_json: args.items,
-              store_slug: currentStoreSlug
-            });
+              // Pede pra IA gerar uma nova resposta avisando o cliente do erro
+              const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3 }),
+              });
+              replyText = (await secondResponse.json()).choices[0].message.content;
+            } 
+            else {
+              // Cliente tem cadastro completo, pode salvar no banco
+              const args = JSON.parse(toolCall.function.arguments);
+              const address = args.delivery_type === 'retirada' ? 'RETIRADA' : profileData.address;
 
-            messages.push(responseMessage);
-            messages.push({ role: "tool", tool_call_id: toolCall.id, content: orderError ? "Erro ao salvar pedido no banco de dados. Diga que houve um erro." : "Pedido registrado com sucesso no painel da loja!" });
+              const { error: orderError } = await supabase.from('orders').insert({
+                user_id: currentUserId,
+                customer_name: profileData.full_name,
+                customer_phone: profileData.phone,
+                delivery_address: address,
+                payment_method: args.payment_method,
+                total_amount: args.total_amount,
+                status: 'pendente',
+                items_json: args.items,
+                store_slug: currentStoreSlug
+              });
 
-            const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3 }),
-            });
-            replyText = (await secondResponse.json()).choices[0].message.content;
+              messages.push(responseMessage);
+              messages.push({ role: "tool", tool_call_id: toolCall.id, content: orderError ? "Erro ao salvar pedido no banco de dados." : "Pedido registrado com sucesso no painel da loja!" });
+
+              const secondResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST', headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages, temperature: 0.3 }),
+              });
+              replyText = (await secondResponse.json()).choices[0].message.content;
+            }
           }
           
           else if (toolCall.function.name === 'alert_store_delay') {
