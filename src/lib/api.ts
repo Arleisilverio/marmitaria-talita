@@ -229,6 +229,16 @@ export const api = {
     if (error) throw new Error("Erro ao excluir lojista.");
   },
 
+  deleteAppAdminWithStore: async (id: string, slug: string) => {
+    try {
+      await supabase.from('store_settings').delete().eq('store_slug', slug);
+    } catch (e) {
+      console.error("Erro ao deletar store_settings:", e);
+    }
+    const { error } = await supabase.from('app_admins').delete().eq('id', id);
+    if (error) throw new Error(error.message || "Erro ao excluir lojista.");
+  },
+
   // Busca apenas lojas ATIVAS para a vitrine (bloqueadas ficam invisíveis)
   getAllStores: async () => {
     // Busca apenas slugs de lojas com status 'active'
