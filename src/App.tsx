@@ -17,21 +17,43 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let isMounted = true;
+
+    // Timeout de segurança para garantir que a tela inicial abra sem travar
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1200);
+
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (isMounted) {
+          setSession(data?.session || null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn("Auth getSession error fallback:", err);
+        if (isMounted) setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (isMounted) {
+        setSession(session);
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0d0f0c] flex items-center justify-center">
-      <div className="w-10 h-10 border-2 border-[#e2725b] border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-screen bg-[#0d0f0c] flex flex-col items-center justify-center gap-4 text-white">
+      <div className="w-12 h-12 border-3 border-[#e2725b] border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">Carregando Da Quebrada...</p>
     </div>
   );
 

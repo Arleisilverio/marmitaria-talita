@@ -1,16 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || '';
-const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
+// Usamos as variáveis de ambiente com fallback seguro do projeto para evitar tela preta na Vercel
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "https://eiqapzziyejicnhfsjdy.supabase.co";
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpcWFwenppeWVqaWNuaGZzamR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjg3MjYsImV4cCI6MjA5NDcwNDcyNn0.6v2K9-ntBJ1ozCetZMRsNtrgBlBmkXOc23CYRiqB4s8";
 
-// Only throw error if running in production build
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  if (import.meta.env.PROD) {
-    throw new Error('[Supabase] Variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY não encontradas.');
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
   }
-  console.warn('[Supabase] Variáveis de ambiente não configuradas. Usando valores vazios.');
-}
-
-export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : createClient('https://placeholder.supabase.co', 'placeholder-key');
+});
