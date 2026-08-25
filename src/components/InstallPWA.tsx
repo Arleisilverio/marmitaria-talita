@@ -70,11 +70,11 @@ export default function InstallPWA() {
       <div className="fixed bottom-20 left-4 right-4 md:left-auto md:right-6 md:bottom-6 z-50 animate-in fade-in slide-in-from-bottom duration-300 max-w-sm ml-auto">
         <div className="bg-[#141712]/95 border border-[#e2725b]/40 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ff7b54] to-[#e2725b] p-0.5 flex items-center justify-center shadow-lg shadow-[#e2725b]/20 shrink-0">
-              <div className="w-full h-full bg-[#0d0f0c] rounded-[10px] flex items-center justify-center font-black text-xs text-[#ff7b54]">
-                DQ
-              </div>
-            </div>
+            <img 
+              src="/pwa-192x192.png" 
+              alt="Da Quebrada" 
+              className="w-10 h-10 rounded-xl object-cover border border-[#e2725b]/40 shadow-lg shrink-0" 
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white tracking-wide">App Da Quebrada</span>
@@ -111,9 +111,11 @@ export default function InstallPWA() {
           <div className="bg-[#141712] border border-white/10 rounded-3xl p-6 w-full max-w-sm text-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#e2725b] flex items-center justify-center font-black text-sm text-white">
-                  DQ
-                </div>
+                <img 
+                  src="/pwa-192x192.png" 
+                  alt="Da Quebrada" 
+                  className="w-8 h-8 rounded-lg object-cover border border-[#e2725b]/40 shadow-sm shrink-0" 
+                />
                 <h3 className="font-bold text-base">Instalar App Da Quebrada</h3>
               </div>
               <button
