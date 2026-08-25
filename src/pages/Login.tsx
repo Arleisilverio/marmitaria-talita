@@ -61,6 +61,18 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     
+    // 1. Tenta primeiro verificar se é um Entregador/Motoboy cadastrado por uma loja
+    try {
+      const courierSession = await api.loginCourier(email, password);
+      if (courierSession) {
+        toast.success(`Olá ${courierSession.courier.name}! Entrando no Painel de Entregas 🛵`);
+        return navigate('/motoboy');
+      }
+    } catch (courierErr) {
+      // Não é motoboy ou senha incorreta, prossegue com Supabase Auth normal
+    }
+
+    // 2. Autenticação padrão de Lojistas e Clientes
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,

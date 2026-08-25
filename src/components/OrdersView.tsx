@@ -3,16 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, Gift, Clock, CheckCircle } from 'lucide-react';
+import { Package, Gift, Clock, CheckCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { formatBRL } from '../lib/utils';
 import { format } from 'date-fns';
 import { useMyOrders } from '../lib/hooks';
+import OrderChatModal from './OrderChatModal';
+import OrderChatButton from './OrderChatButton';
 
 export default function OrdersView() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [selectedOrderForChat, setSelectedOrderForChat] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -21,7 +24,7 @@ export default function OrdersView() {
     });
   }, []);
 
-  const { data: orders = [], isLoading: loadingOrders } = useMyOrders(user?.id);
+  const { data: orders = [], isLoading: loadingOrders, refetch } = useMyOrders(user?.id);
   const loading = loadingAuth || (user && loadingOrders);
 
   if (loading) return <div className="p-8 text-center text-zinc-500">Carregando...</div>;
@@ -58,7 +61,7 @@ export default function OrdersView() {
         </div>
         <div>
           <h2 className="font-heading text-2xl font-bold text-white">Meus Pedidos</h2>
-          <p className="text-sm text-zinc-500">Acompanhe seu histórico</p>
+          <p className="text-sm text-zinc-500">Acompanhe seu histórico e converse com o lojista</p>
         </div>
       </div>
 
@@ -69,37 +72,73 @@ export default function OrdersView() {
           </div>
         ) : (
           orders.map((order) => (
-            <div key={order.id} className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="font-sans text-xs text-zinc-500 font-mono mb-1">
-                    {format(new Date(order.created_at), "dd/MM/yyyy • HH:mm")}
-                  </p>
-                  <p className="font-bold text-white text-lg">{formatBRL(order.total_amount)}</p>
+            <div key={order.id} className="glass-card rounded-2xl p-5 border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="font-sans text-xs text-zinc-500 font-mono mb-1">
+                      {format(new Date(order.created_at), "dd/MM/yyyy • HH:mm")}
+                    </p>
+                    <p className="font-bold text-white text-lg">{formatBRL(order.total_amount)}</p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold flex items-center gap-1 ${
+                    order.status === 'pendente' ? 'bg-primary/10 text-primary border border-primary/30' : 
+                    order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 
+                    order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 
+                    'bg-red-500/10 text-red-500 border border-red-500/30'
+                  }`}>
+                    {order.status === 'entregue' ? <CheckCircle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
+                    {order.status}
+                  </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold flex items-center gap-1 ${
-                  order.status === 'pendente' ? 'bg-primary/10 text-primary border border-primary/30' : 
-                  order.status === 'confirmado' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 
-                  order.status === 'entregue' ? 'bg-green-500/10 text-green-500 border border-green-500/30' : 
-                  'bg-red-500/10 text-red-500 border border-red-500/30'
-                }`}>
-                  {order.status === 'entregue' ? <CheckCircle className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
-                  {order.status}
+                
+                {/* DETALHE DO MOTOBOY / ENTREGA */}
+                {order.courier_name && (
+                  <div className="mb-3 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 flex items-center gap-1.5">
+                      🛵 Entregador:
+                    </span>
+                    <b className="text-orange-400">
+                      {order.status === 'entregue' ? `Entregue por ${order.courier_name}` : `A caminho com ${order.courier_name}`}
+                    </b>
+                  </div>
+                )}
+                
+                <div className="space-y-2 bg-black/20 p-3 rounded-xl border border-white/5 mb-4">
+                  {order.items_json?.map((i:any, idx:number) => (
+                    <p key={idx} className="text-sm text-zinc-300">
+                      <span className="font-bold text-zinc-500 mr-2">{i.quantity}x</span>
+                      {typeof i.name === 'object' ? i.name.name : i.name} {i.size && <span className="text-orange-400 text-xs">({i.size})</span>}
+                    </p>
+                  ))}
                 </div>
               </div>
-              
-              <div className="space-y-2 bg-black/20 p-3 rounded-xl border border-white/5">
-                {order.items_json?.map((i:any, idx:number) => (
-                  <p key={idx} className="text-sm text-zinc-300">
-                    <span className="font-bold text-zinc-500 mr-2">{i.quantity}x</span>
-                    {i.name} {i.size && <span className="text-orange-400 text-xs">({i.size})</span>}
-                  </p>
-                ))}
+
+              {/* BOTÃO DE CHAT DIRETO COM O LOJISTA (COM BADGE NEON PULSANTE) */}
+              <div className="pt-2 border-t border-white/5">
+                <OrderChatButton
+                  orderId={order.id}
+                  senderType="client"
+                  label="Chat do Pedido / Falar com Lojista"
+                  onClick={() => setSelectedOrderForChat(order)}
+                />
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* MODAL DE CHAT */}
+      {selectedOrderForChat && (
+        <OrderChatModal
+          isOpen={!!selectedOrderForChat}
+          onClose={() => setSelectedOrderForChat(null)}
+          order={selectedOrderForChat}
+          senderType="client"
+          senderName={user?.email || 'Cliente'}
+          onStatusChange={() => refetch()}
+        />
+      )}
     </div>
   );
 }

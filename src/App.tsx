@@ -9,6 +9,8 @@ import ClientCheckout from './pages/ClientCheckout';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Login from './pages/Login';
+import CourierDashboard from './pages/CourierDashboard';
+import InstallPWA from './components/InstallPWA';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -36,11 +38,14 @@ export default function App() {
   return (
     <CartProvider>
       <Toaster position="top-center" reverseOrder={false} />
+      <InstallPWA />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Marketplace />} />
           <Route path="/checkout" element={<ClientCheckout />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/motoboy" element={<CourierDashboard />} />
+          <Route path="/courier" element={<CourierDashboard />} />
           <Route path="/admin" element={session ? <AdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/super-admin" element={session ? <SuperAdminDashboard /> : <Navigate to="/login" />} />
           <Route path="/:slug" element={<ClientHome />} />

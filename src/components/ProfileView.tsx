@@ -69,6 +69,7 @@ export default function ProfileView({ isMandatory = false, onSaveSuccess }: Prof
     try {
       const { error } = await supabase.from('profiles').upsert({
         id: user.id,
+        email: user.email,
         full_name: profile.full_name,
         phone: profile.phone,
         address: profile.address,
@@ -81,8 +82,8 @@ export default function ProfileView({ isMandatory = false, onSaveSuccess }: Prof
       setIsEditing(false);
       if (onSaveSuccess) onSaveSuccess();
     } catch (err: any) {
-      toast.error("Erro ao salvar perfil.");
-      console.error(err);
+      toast.error(err.message || "Erro ao salvar perfil.");
+      console.error("Erro ao salvar perfil:", err);
     } finally {
       setSaving(false);
     }

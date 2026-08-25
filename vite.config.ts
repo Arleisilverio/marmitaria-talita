@@ -4,75 +4,62 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [
-      react(), 
+      react(),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.jpg'],
+        includeAssets: [
+          'favicon.svg',
+          'favicon.png',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'maskable-icon-512x512.png',
+          'da-quebrada-hero.jpg'
+        ],
         manifest: {
-          name: 'Praça da Quebrada',
-          short_name: 'Quebrada',
-          description: 'O melhor sabor da região, preparado na hora e entregue com rapidez.',
+          name: 'Da Quebrada - Delivery & Comércios',
+          short_name: 'Da Quebrada',
+          description: 'O melhor delivery e comércios da quebrada na palma da sua mão.',
           theme_color: '#0d0f0c',
           background_color: '#0d0f0c',
-          display: 'standalone', // Faz o app rodar em tela cheia, sem barra de navegador
+          display: 'standalone',
           orientation: 'portrait',
+          start_url: '/',
+          scope: '/',
           icons: [
             {
-              src: 'icon.jpg',
+              src: '/pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/jpeg'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'icon.jpg',
+              src: '/pwa-512x512.png',
               sizes: '512x512',
-              type: 'image/jpeg'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'icon.jpg',
+              src: '/maskable-icon-512x512.png',
               sizes: '512x512',
-              type: 'image/jpeg',
-              purpose: 'any maskable' // Permite que o Android arredonde a borda do ícone automaticamente
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/favicon.svg',
+              sizes: 'any',
+              type: 'image/svg+xml'
             }
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg}'],
-          runtimeCaching: [
-            // Política de Cache Agressiva para as fontes (Google Fonts)
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // Cache por 1 ano
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // Cache por 1 ano
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            }
-          ]
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
+          navigateFallback: '/index.html'
         }
       })
     ],
@@ -86,6 +73,7 @@ export default defineConfig(({mode}) => {
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };

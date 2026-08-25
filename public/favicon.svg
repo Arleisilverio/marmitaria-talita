@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7b54" />
+      <stop offset="100%" stop-color="#e2725b" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#0d0f0c" />
+  <rect width="62" height="62" x="1" y="1" rx="15" fill="none" stroke="#e2725b" stroke-width="1.5" />
+  
+  <!-- D -->
+  <path d="M16 18 H26 C33 18 38 23 38 32 C38 41 33 46 26 46 H16 Z" fill="url(#favGrad)" />
+  <path d="M22 24 H26 C29 24 32 27 32 32 C32 37 29 40 26 40 H22 Z" fill="#0d0f0c" />
+
+  <!-- Dot / Star -->
+  <circle cx="48" cy="22" r="4" fill="#ffd56b" />
+  <!-- Q mini tail -->
+  <path d="M42 36 L48 46" stroke="#ffd56b" stroke-width="4" stroke-linecap="round" />
+</svg>

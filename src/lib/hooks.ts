@@ -1,5 +1,5 @@
 /**
- * Hooks de Query — Marmitaria Talita
+ * Hooks de Query — Da Quebrada
  * 
  * Centraliza todas as chamadas ao banco usando TanStack Query.
  * Benefícios: cache automático, zero tela branca, atualização em segundo plano.

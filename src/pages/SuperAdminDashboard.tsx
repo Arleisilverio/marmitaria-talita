@@ -14,6 +14,7 @@ export default function SuperAdminDashboard() {
   const [newEmail, setNewEmail] = useState('');
   const [newStoreName, setNewStoreName] = useState('');
   const [newSlug, setNewSlug] = useState('');
+  const [selectedNiche, setSelectedNiche] = useState<'espetinho' | 'marmitaria' | 'bolos_doces' | 'hamburgueria'>('espetinho');
 
   useEffect(() => {
     checkSuperAdmin();
@@ -42,8 +43,8 @@ export default function SuperAdminDashboard() {
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.addAppAdmin(newEmail, newStoreName, newSlug);
-      toast.success("Lojista adicionado com sucesso!");
+      await api.addAppAdmin(newEmail, newStoreName, newSlug, selectedNiche);
+      toast.success("Lojista adicionado com sucesso com template configurado!");
       setNewEmail('');
       setNewStoreName('');
       setNewSlug('');
@@ -94,24 +95,60 @@ export default function SuperAdminDashboard() {
 
       <main className="max-w-5xl mx-auto p-6 space-y-8 mt-6">
         {/* ADD NOVO LOJISTA */}
-        <section className="bg-zinc-900/50 border border-white/5 p-6 rounded-3xl">
-          <h2 className="font-bold flex items-center gap-2 mb-4"><Plus className="w-5 h-5 text-primary"/> Novo Lojista</h2>
-          <form onSubmit={handleAddAdmin} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <section className="bg-zinc-900/50 border border-white/5 p-6 md:p-8 rounded-3xl">
+          <h2 className="font-bold flex items-center gap-2 mb-2"><Plus className="w-5 h-5 text-primary"/> Novo Lojista</h2>
+          <p className="text-xs text-zinc-400 mb-6">Escolha o modelo da loja para já nascer com o cardápio e fotos pré-configurados.</p>
+          
+          <form onSubmit={handleAddAdmin} className="space-y-6">
+            {/* SELETOR DE MODELO/NICHO */}
             <div>
-              <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Email do Dono</label>
-              <input required type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="arlei85@hotmail.com" className="w-full bg-black/40 border border-white/5 p-3 rounded-xl text-white outline-none focus:border-primary text-sm"/>
+              <label className="text-[10px] text-zinc-400 uppercase tracking-widest mb-3 block font-black">1. Escolha o Modelo / Nicho da Loja:</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { id: 'espetinho', label: 'Espetinhos', icon: '🍢', desc: 'Espetos, Jantinhas e Porções' },
+                  { id: 'marmitaria', label: 'Marmitaria', icon: '🍱', desc: 'Marmitas P/M/G e Carnes' },
+                  { id: 'bolos_doces', label: 'Doces & Bolos', icon: '🍰', desc: 'Bolos, Fatias e Tortas' },
+                  { id: 'hamburgueria', label: 'Hamburgueria', icon: '🍔', desc: 'Burgers, Combos e Batata' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedNiche(item.id as any)}
+                    className={`p-4 rounded-2xl border text-left transition-all ${
+                      selectedNiche === item.id 
+                        ? 'bg-primary/10 border-primary text-white shadow-lg shadow-primary/10' 
+                        : 'bg-black/30 border-white/5 text-zinc-400 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{item.icon}</div>
+                    <div className="font-bold text-sm text-white">{item.label}</div>
+                    <div className="text-[10px] text-zinc-500 mt-1">{item.desc}</div>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* DADOS DA LOJA */}
             <div>
-              <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Nome da Loja</label>
-              <input required type="text" value={newStoreName} onChange={e => setNewStoreName(e.target.value)} placeholder="Sua Loja" className="w-full bg-black/40 border border-white/5 p-3 rounded-xl text-white outline-none focus:border-primary text-sm"/>
+              <label className="text-[10px] text-zinc-400 uppercase tracking-widest mb-3 block font-black">2. Dados de Acesso e URL:</label>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Email do Dono</label>
+                  <input required type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="lojista@gmail.com" className="w-full bg-black/40 border border-white/5 p-3.5 rounded-xl text-white outline-none focus:border-primary text-sm"/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Nome da Loja</label>
+                  <input required type="text" value={newStoreName} onChange={e => setNewStoreName(e.target.value)} placeholder="ex: Espetinho do Chef" className="w-full bg-black/40 border border-white/5 p-3.5 rounded-xl text-white outline-none focus:border-primary text-sm"/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Slug (Link da Loja)</label>
+                  <input required type="text" value={newSlug} onChange={e => setNewSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} placeholder="ex: espetinho-do-chef" className="w-full bg-black/40 border border-white/5 p-3.5 rounded-xl text-white outline-none focus:border-primary text-sm font-mono"/>
+                </div>
+                <button type="submit" className="w-full bg-primary py-3.5 rounded-xl font-bold uppercase text-xs text-white shadow-lg shadow-primary/20 hover:scale-105 transition-transform h-[48px]">
+                  Criar Loja Pronta
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Slug (URL)</label>
-              <input required type="text" value={newSlug} onChange={e => setNewSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} placeholder="ex: lanches-da-maria" className="w-full bg-black/40 border border-white/5 p-3 rounded-xl text-white outline-none focus:border-primary text-sm font-mono"/>
-            </div>
-            <button type="submit" className="w-full bg-primary py-3 rounded-xl font-bold uppercase text-xs text-white shadow-lg shadow-primary/20 hover:scale-105 transition-transform h-[46px]">
-              Cadastrar
-            </button>
           </form>
         </section>
 
@@ -124,7 +161,7 @@ export default function SuperAdminDashboard() {
             <div className="bg-zinc-900 border border-white/5 p-5 rounded-2xl flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg">Marmitaria Talita (Oficial)</h3>
+                  <h3 className="font-bold text-lg">Minha Loja Principal (Matriz)</h3>
                   <span className="bg-blue-500/10 text-blue-500 border border-blue-500/20 text-[9px] px-2 py-1 rounded-full uppercase tracking-widest font-bold">Matriz</span>
                 </div>
                 <p className="text-zinc-500 text-xs font-mono mb-4">arleisilverio41@gmail.com</p>

@@ -1,31 +1,46 @@
 import React, { useEffect, useState } from 'react';
+// Build version: 1.0.2 - Premium UI & Database Sync
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
-import { Store, ArrowRight, Clock, ArrowLeft, LogOut, Pizza, Coffee, Utensils, Beef, Package, Flame, Star } from 'lucide-react';
+import { Leaf, Store, ArrowRight, Clock, ArrowLeft, LogOut, User, Shield } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'react-hot-toast';
-
-// Ícones que vão compor o fundo estilo WhatsApp
-const BACKGROUND_ICONS = [Pizza, Coffee, Utensils, Beef, Package, Flame, Star, Store];
 
 export default function Marketplace() {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchData = async () => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUser(data.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+      toast.success("Você saiu da conta com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao encerrar sessão.");
+    }
+  };
+
+  useEffect(() => {
+    const fetchStores = async () => {
       try {
         setLoading(true);
-        // Verifica se há usuário logado
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-        
-        // Carrega lojas
         const data = await api.getAllStores();
         setStores(data);
       } catch (err: any) {
@@ -35,16 +50,8 @@ export default function Marketplace() {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchStores();
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    toast.success("Você saiu da conta.");
-    // Redireciona para a página de login
-    navigate('/login', { replace: true });
-  };
 
   if (loading) {
     return (
@@ -99,106 +106,137 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-background selection:bg-primary/30 relative overflow-hidden">
-      
-      {/* BACKGROUND ESTILO WHATSAPP (Rabiscos Fast Food) */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.03] flex flex-wrap justify-center items-center gap-12 p-8 -rotate-6 scale-110">
-        {Array.from({ length: 80 }).map((_, i) => {
-          const Icon = BACKGROUND_ICONS[i % BACKGROUND_ICONS.length];
-          return <Icon key={i} className="w-16 h-16 text-white" strokeWidth={1.5} />;
-        })}
-      </div>
-
-      {/* Header com Login/Logout */}
-      <div className="fixed top-8 right-8 z-50 flex items-center gap-4">
-        {user ? (
-          <div className="flex items-center gap-4">
-            <span className="text-zinc-500 text-xs font-mono hidden md:block">{user.email}</span>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
-            >
-              <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-red-500 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all border border-white/5">
-                <LogOut className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Sair</span>
-            </button>
+    <div className="min-h-screen bg-background selection:bg-primary/30">
+      {/* Top Bar com Status de Autenticação e Botão de Logout */}
+      <header className="fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex items-center justify-between pointer-events-none">
+        {/* Esquerda: Logo / Identidade */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="pointer-events-auto flex items-center gap-3 bg-zinc-950/60 border border-white/10 backdrop-blur-xl px-4 py-2 rounded-2xl shadow-xl"
+        >
+          <img 
+            src="/da-quebrada-hero.jpg" 
+            alt="Da Quebrada" 
+            className="w-8 h-8 rounded-xl object-cover border border-amber-500/30"
+          />
+          <div className="hidden sm:block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block leading-tight">Da Quebrada</span>
+            <span className="text-[8px] text-zinc-500 font-mono block">Delivery Comunitário</span>
           </div>
-        ) : (
-          <motion.button 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate('/login')}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all group"
-          >
-            <div className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:shadow-[0_0_20px_rgba(226,114,91,0.4)] transition-all border border-white/5">
-              <ArrowLeft className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0">Login</span>
-          </motion.button>
-        )}
-      </div>
+        </motion.div>
 
-      {/* Hero Section */}
-      <div className="relative min-h-[55vh] flex items-center justify-center overflow-hidden py-20 z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(226,114,91,0.15),transparent_70%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background" />
+        {/* Direita: Usuário Logado / Botão de Logout ou Login */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="pointer-events-auto flex items-center gap-2"
+        >
+          {currentUser ? (
+            <div className="flex items-center gap-2 bg-zinc-950/70 border border-white/10 backdrop-blur-xl p-1.5 pl-3 rounded-2xl shadow-xl">
+              <div className="hidden md:flex flex-col text-right mr-1">
+                <span className="text-[10px] font-bold text-white leading-tight max-w-[140px] truncate">
+                  {currentUser.email}
+                </span>
+                <span className="text-[8px] text-emerald-400 font-mono font-bold uppercase">● Conectado</span>
+              </div>
+
+              {/* Botão Painel Admin (se admin ou lojista) */}
+              <button
+                onClick={() => navigate('/admin')}
+                className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-300 hover:text-white rounded-xl text-xs font-bold transition-all"
+                title="Painel de Controle"
+              >
+                Painel
+              </button>
+
+              {/* Botão Sair / Logout */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                title="Encerrar Sessão"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sair</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary/20 transition-all active:scale-95"
+            >
+              <User className="w-4 h-4" />
+              <span>Entrar / Login</span>
+            </button>
+          )}
+        </motion.div>
+      </header>
+
+      {/* Hero Section com a Arte Da Quebrada no Fundo */}
+      <div className="relative min-h-[60vh] md:min-h-[70vh] flex items-center justify-center overflow-hidden py-24 px-4">
+        {/* Background Image com Overlays Artísticos */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 scale-105 transform hover:scale-100 transition-transform duration-1000"
+          style={{ backgroundImage: `url('/da-quebrada-hero.jpg')` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/60 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.15),transparent_70%)]" />
         
         <div className="relative z-10 text-center px-4 w-full max-w-4xl">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center justify-center gap-3 mb-6"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 backdrop-blur-md mb-6"
           >
-            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-primary/50" />
-            <Store className="text-primary w-6 h-6 animate-pulse" />
-            <span className="text-primary font-mono text-[10px] font-bold tracking-[0.4em] uppercase">Praça de Alimentação</span>
-            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-primary/50" />
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span className="text-amber-400 font-mono text-[11px] font-black tracking-[0.3em] uppercase">Delivery & Comércio Local</span>
           </motion.div>
 
           <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-5xl md:text-8xl font-heading font-black text-white mb-6 tracking-tighter leading-none"
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="text-6xl md:text-9xl font-heading font-black text-white mb-6 tracking-tighter leading-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]"
           >
-            O SABOR DA <br />
-            <span className="text-primary italic relative">
-              QUEBRADA
-              <motion.span 
-                initial={{ width: 0 }}
-                animate={{ width: '100%' }}
-                transition={{ delay: 1, duration: 0.8 }}
-                className="absolute -bottom-2 left-0 h-2 bg-primary/20 -z-10"
-              />
-            </span>
+            DA <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-400 italic">QUEBRADA</span>
           </motion.h1>
 
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-zinc-400 max-w-lg mx-auto mb-10 text-lg font-medium leading-relaxed"
+            className="text-zinc-300 max-w-xl mx-auto mb-10 text-lg md:text-xl font-medium leading-relaxed drop-shadow-md"
           >
-            As melhores opções da região, preparadas na hora e entregues com rapidez. Escolha sua favorita agora.
+            Comida caseira, doces, picolés e comércios da vila. O melhor sabor e praticidade direto pra sua mesa.
           </motion.p>
           
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/login')}
-            className="group relative px-10 py-5 bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:border-primary/50 backdrop-blur-md"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex flex-wrap items-center justify-center gap-4"
           >
-            <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="relative text-xs font-black uppercase tracking-[0.3em] text-white group-hover:text-primary transition-colors">
+            <button
+              onClick={() => {
+                const element = document.getElementById('vitrine-lojas');
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-heading font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-orange-500/25 hover:scale-105 active:scale-95 transition-all"
+            >
+              Explorar Lojas
+            </button>
+            <button
+              onClick={() => navigate('/login')}
+              className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-500/40 text-white font-heading font-black text-xs uppercase tracking-[0.2em] rounded-2xl backdrop-blur-xl hover:scale-105 active:scale-95 transition-all"
+            >
               Área do Lojista
-            </span>
-          </motion.button>
+            </button>
+          </motion.div>
         </div>
       </div>
 
       {/* Stores Grid */}
-      <main className="relative max-w-7xl mx-auto px-6 pb-24 z-10">
+      <main id="vitrine-lojas" className="max-w-7xl mx-auto px-6 pb-24 scroll-mt-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -207,68 +245,35 @@ export default function Marketplace() {
         >
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <Store className="text-primary w-6 h-6" />
-              <h2 className="text-white font-heading text-3xl font-black uppercase tracking-tight">Vitrine de Lojas</h2>
+              <Store className="text-amber-500 w-7 h-7" />
+              <h2 className="text-white font-heading text-3xl md:text-4xl font-black uppercase tracking-tight">Vitrine de Lojas</h2>
             </div>
-            <p className="text-zinc-500 font-medium">Os melhores pratos e lanches em um só lugar</p>
+            <p className="text-zinc-400 font-medium">Os melhores comércios locais da comunidade em um só lugar</p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono text-zinc-600 uppercase tracking-widest bg-white/5 px-4 py-2 rounded-full backdrop-blur-md">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            {stores.length} Lojas Online
+          <div className="flex items-center gap-4 text-xs font-mono text-zinc-400 uppercase tracking-widest bg-white/5 border border-white/10 px-5 py-2.5 rounded-full">
+            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+            {stores.length} Lojas Ativas
           </div>
         </motion.div>
 
-        {/* SEM LOJAS CADASTRADAS */}
-        {stores.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="py-20 text-center"
-          >
-            <div className="max-w-md mx-auto bg-zinc-900/50 border border-white/5 rounded-3xl p-10 backdrop-blur-xl">
-              <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-white/10">
-                <Store className="w-10 h-10 text-zinc-700" />
-              </div>
-              <h3 className="text-white text-xl font-bold mb-3 uppercase tracking-tighter">Nenhuma loja cadastrada</h3>
-              <p className="text-zinc-500 font-medium max-w-xs mx-auto mb-8">
-                Ainda não temos lojas disponíveis. Se você é lojista, entre em contato com o administrador para criar sua loja.
-              </p>
-              {user ? (
-                <button 
-                  onClick={handleLogout}
-                  className="w-full bg-red-500/10 border border-red-500/20 py-4 rounded-2xl text-red-500 font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-500/20 transition-colors"
-                >
-                  <LogOut className="w-5 h-5" />
-                  Sair da Conta
-                </button>
-              ) : (
-                <button 
-                  onClick={() => navigate('/login')}
-                  className="w-full bg-primary py-4 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/80 transition-colors"
-                >
-                  Fazer Login
-                </button>
-              )}
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {stores.map((store) => (
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+        >
+          {stores.length > 0 ? (
+            stores.map((store) => (
               <motion.div
                 key={store.slug}
                 variants={itemVariants}
                 whileHover={{ y: -10 }}
                 onClick={() => navigate(`/${store.slug}`)}
-                className="group relative h-full"
+                className="group relative h-full cursor-pointer"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-700 -z-10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-700 -z-10" />
                 
-                <div className="glass-card rounded-[40px] overflow-hidden border border-white/5 bg-zinc-900/40 backdrop-blur-2xl h-full flex flex-col transition-all group-hover:border-primary/20 group-hover:bg-zinc-900/60 shadow-2xl">
+                <div className="glass-card rounded-[40px] overflow-hidden border border-white/5 bg-zinc-900/40 backdrop-blur-2xl h-full flex flex-col transition-all group-hover:border-amber-500/30 group-hover:bg-zinc-900/60 shadow-2xl">
                   {/* Store Image */}
                   <div className="h-56 overflow-hidden relative">
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent z-10" />
@@ -280,7 +285,7 @@ export default function Marketplace() {
                       />
                     ) : (
                       <div className="w-full h-full bg-zinc-900 flex items-center justify-center group-hover:bg-zinc-800 transition-colors">
-                        <Store className="w-16 h-16 text-zinc-800 group-hover:text-primary/20 transition-colors" />
+                        <Store className="w-16 h-16 text-zinc-800 group-hover:text-amber-500/30 transition-colors" />
                       </div>
                     )}
                     
@@ -288,8 +293,8 @@ export default function Marketplace() {
                       <div className={cn(
                         "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest border backdrop-blur-xl shadow-2xl",
                         store.isOpen 
-                          ? "bg-green-500/10 text-green-500 border-green-500/20" 
-                          : "bg-red-500/10 text-red-500 border-red-500/20"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                          : "bg-red-500/10 text-red-400 border-red-500/20"
                       )}>
                         {store.isOpen ? '● ABERTO AGORA' : '○ FECHADO'}
                       </div>
@@ -298,25 +303,25 @@ export default function Marketplace() {
 
                   {/* Content */}
                   <div className="p-8 flex-1 flex flex-col">
-                    <h3 className="text-white font-heading text-3xl font-black mb-3 group-hover:text-primary transition-colors tracking-tight">
+                    <h3 className="text-white font-heading text-3xl font-black mb-3 group-hover:text-amber-400 transition-colors tracking-tight">
                       {store.title}
                     </h3>
-                    <p className="text-zinc-500 text-sm leading-relaxed line-clamp-2 mb-8 font-medium">
-                      {store.description || "O melhor sabor da região, preparado com ingredientes frescos e selecionados."}
+                    <p className="text-zinc-400 text-sm leading-relaxed line-clamp-2 mb-8 font-medium">
+                      {store.description || "Produtos selecionados com qualidade e carinho para você."}
                     </p>
                     
                     <div className="flex items-center justify-between mt-auto pt-8 border-t border-white/5">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 text-zinc-400">
-                          <Clock size={14} className="text-primary" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Tempo Médio</span>
+                          <Clock size={14} className="text-amber-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Entrega Rápida</span>
                         </div>
-                        <span className="text-white text-xs font-bold">35 - 50 min</span>
+                        <span className="text-white text-xs font-bold">30 - 45 min</span>
                       </div>
                       
                       <motion.div 
                         whileHover={{ x: 5 }}
-                        className="flex items-center gap-2 bg-primary text-white px-5 py-3 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                        className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white px-5 py-3 rounded-2xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
                       >
                         <span className="text-[10px] font-black uppercase tracking-wider">Ver Loja</span>
                         <ArrowRight size={16} />
@@ -325,30 +330,51 @@ export default function Marketplace() {
                   </div>
                 </div>
               </motion.div>
-            ))}
-          </motion.div>
-        )}
+            ))
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="col-span-full py-32 text-center"
+            >
+              <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-white/10">
+                <Store className="w-10 h-10 text-zinc-700" />
+              </div>
+              <h3 className="text-white text-xl font-bold mb-2 uppercase tracking-tighter">Nenhuma loja ativa</h3>
+              <p className="text-zinc-500 font-medium max-w-xs mx-auto">Estamos cadastrando novos comércios da quebrada para você. Volte em breve!</p>
+            </motion.div>
+          )}
+        </motion.div>
       </main>
 
-      {/* Footer Neutro */}
-      <footer className="relative py-20 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl z-10">
+      {/* Footer Premium */}
+      <footer className="py-16 border-t border-white/5 bg-zinc-950/80">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-10">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-               <Store className="text-white w-6 h-6" />
+          <div className="flex items-center gap-3.5">
+             <div className="w-12 h-12 rounded-xl overflow-hidden border border-amber-500/40 shadow-lg shadow-amber-500/20 bg-zinc-900 flex-shrink-0">
+               <img 
+                 src="/da-quebrada-hero.jpg" 
+                 alt="Logo Da Quebrada" 
+                 className="w-full h-full object-cover transform scale-105 hover:scale-110 transition-transform duration-300"
+               />
              </div>
-             <span className="text-white font-heading font-black text-xl uppercase tracking-tighter">PRAÇA <span className="text-primary">DA QUEBRADA</span></span>
+             <div className="flex flex-col">
+               <span className="text-white font-heading font-black text-2xl uppercase tracking-tighter leading-none">
+                 DA <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 italic">QUEBRADA</span>
+               </span>
+               <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase mt-1">Delivery Comunitário</span>
+             </div>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
-             <a href="#" className="hover:text-primary transition-colors">Início</a>
-             <a href="#" className="hover:text-primary transition-colors">Termos de Uso</a>
-             <a href="#" className="hover:text-primary transition-colors">Privacidade</a>
-             <a href="#" className="hover:text-primary transition-colors">Ajuda</a>
+          <div className="flex flex-wrap justify-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+             <a href="#" className="hover:text-amber-400 transition-colors">Início</a>
+             <a href="#" className="hover:text-amber-400 transition-colors">Lojas</a>
+             <a href="#" className="hover:text-amber-400 transition-colors">Parcerias</a>
+             <a href="#" className="hover:text-amber-400 transition-colors">Ajuda</a>
           </div>
 
-          <p className="text-zinc-700 text-[10px] uppercase font-mono tracking-[0.2em]">
-            &copy; 2024 Platform • Fast Food Delivery
+          <p className="text-zinc-600 text-[10px] uppercase font-mono tracking-[0.2em]">
+            &copy; 2026 DA QUEBRADA • Delivery Comunitário
           </p>
         </div>
       </footer>
